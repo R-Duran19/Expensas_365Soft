@@ -1,0 +1,411 @@
+/* ============================================
+   PERSONALIZACIÓN DE PRIMEVUE
+   Edita aquí los colores, bordes, y estilos
+   ============================================ */
+
+/* 1️⃣ VARIABLES DE COLOR - Cambia estos valores */
+:root {
+  /* Colores principales */
+  --primary-color: #3b82f6;        /* Azul principal - cámbialo a tu color */
+  --primary-hover: #2563eb;        /* Azul hover */
+  --primary-color-text: #ffffff;   /* Texto sobre primary */
+  
+  /* Colores de fondo */
+  --surface-ground: #f8f9fa;       /* Fondo general */
+  --surface-card: #ffffff;         /* Fondo de tarjetas */
+  
+  /* Colores de texto */
+  --text-color: #1f2937;           /* Texto principal */
+  --text-color-secondary: #6b7280; /* Texto secundario */
+  
+  /* Bordes */
+  --border-color: #e5e7eb;         /* Color de bordes */
+  --border-radius: 0.5rem;         /* Radio de borde (8px) */
+  --border-radius-sm: 0.375rem;    /* Radio pequeño (6px) */
+  --border-radius-lg: 0.75rem;     /* Radio grande (12px) */
+  
+  /* Colores de estado */
+  --success-color: #10b981;        /* Verde éxito */
+  --success-hover: #059669;
+  --danger-color: #ef4444;         /* Rojo peligro */
+  --danger-hover: #dc2626;
+  --warning-color: #f59e0b;        /* Amarillo advertencia */
+  --info-color: #3b82f6;           /* Azul info */
+  --secondary-color: #6b7280;      /* Gris secundario */
+  
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Modo oscuro */
+.dark {
+  --surface-ground: #111827;
+  --surface-card: #1f2937;
+  --text-color: #f9fafb;
+  --text-color-secondary: #9ca3af;
+  --border-color: #374151;
+}
+
+/* 2️⃣ BOTONES - Personaliza aquí */
+.p-button {
+  /* Tamaño y espaciado */
+  padding: 0.625rem 1.25rem;      /* Aumenta/disminuye el padding */
+  font-size: 0.875rem;             /* Tamaño de fuente */
+  font-weight: 600;                /* Grosor de fuente */
+  
+  /* Bordes */
+  border-radius: 0.5rem;           /* 🔥 Cambia esto para más/menos redondeo */
+  border: 2px solid transparent;   /* Grosor del borde */
+  
+  /* Efectos */
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.p-button:hover {
+  transform: translateY(-1px);     /* Efecto de elevación al hover */
+  box-shadow: var(--shadow);
+}
+
+/* Botón Primary (principal) */
+.p-button.p-button-primary,
+.p-button:not([class*="p-button-"]) {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color-text);
+}
+
+.p-button.p-button-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+/* Botón Success (verde) */
+.p-button.p-button-success {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+.p-button.p-button-success:hover {
+  background: var(--success-hover);
+  border-color: var(--success-hover);
+}
+
+/* Botón Danger (rojo) */
+.p-button.p-button-danger {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+
+.p-button.p-button-danger:hover {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+
+/* Botón Info (azul) */
+.p-button.p-button-info {
+  background: var(--info-color);
+  border-color: var(--info-color);
+  color: white;
+}
+
+/* Botón Secondary (gris) */
+.p-button.p-button-secondary {
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
+  color: white;
+}
+
+/* Botones outlined (contorno) */
+.p-button.p-button-outlined {
+  background: transparent;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.p-button.p-button-outlined:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Botones text (sin fondo) */
+.p-button.p-button-text {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  box-shadow: none;
+}
+
+.p-button.p-button-text:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Botones rounded (redondos) */
+.p-button.p-button-rounded {
+  border-radius: 9999px;          /* 🔥 Botones completamente redondos */
+}
+
+/* Botones small */
+.p-button.p-button-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+/* Botones large */
+.p-button.p-button-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* 3️⃣ INPUTS - Personaliza campos de texto */
+.p-inputtext {
+  font-size: 0.875rem;
+  padding: 0.625rem 0.875rem;
+  border: 2px solid var(--border-color);   /* 🔥 Cambia grosor del borde */
+  background: var(--surface-card);
+  color: var(--text-color);
+  border-radius: 0.5rem;                   /* 🔥 Cambia redondeo */
+  transition: all 0.2s;
+}
+
+.p-inputtext:enabled:hover {
+  border-color: var(--primary-color);
+}
+
+.p-inputtext:enabled:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);  /* Sombra al focus */
+}
+
+/* 4️⃣ CARDS - Tarjetas */
+.p-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);   /* 🔥 Cambia redondeo de cards */
+  box-shadow: var(--shadow);
+}
+
+.p-card .p-card-body {
+  padding: 1.5rem;
+}
+
+/* 5️⃣ DATATABLE - Tablas */
+.p-datatable {
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--surface-ground);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 0.875rem 1rem;
+  font-weight: 700;                        /* 🔥 Grosor de fuente headers */
+  font-size: 0.875rem;
+  text-transform: uppercase;               /* 🔥 Mayúsculas en headers */
+  letter-spacing: 0.05em;
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  transition: all 0.15s;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--surface-ground);
+  cursor: pointer;                         /* 🔥 Cursor pointer al hover */
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border: 1px solid var(--border-color);
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* 6️⃣ DIALOG - Modales */
+.p-dialog {
+  background: var(--surface-card);
+  border: none;
+  border-radius: var(--border-radius-lg);   /* 🔥 Redondeo de modales */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.p-dialog .p-dialog-header {
+  background: var(--surface-card);
+  padding: 1.5rem 1.75rem;
+  border-bottom: 2px solid var(--border-color);  /* 🔥 Grosor de línea */
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.p-dialog .p-dialog-header .p-dialog-title {
+  font-size: 1.125rem;
+  font-weight: 700;                        /* 🔥 Grosor título modal */
+}
+
+.p-dialog .p-dialog-content {
+  padding: 1.75rem;
+}
+
+.p-dialog .p-dialog-footer {
+  padding: 1.25rem 1.75rem;
+  border-top: 2px solid var(--border-color);
+  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+}
+
+/* 7️⃣ TAGS - Etiquetas de estado */
+.p-tag {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;                   /* 🔥 Tags redondos */
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.p-tag.p-tag-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.p-tag.p-tag-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.p-tag.p-tag-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.p-tag.p-tag-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Tags en modo oscuro */
+.dark .p-tag.p-tag-success {
+  background: #064e3b;
+  color: #d1fae5;
+}
+
+.dark .p-tag.p-tag-danger {
+  background: #7f1d1d;
+  color: #fee2e2;
+}
+
+/* 8️⃣ TOOLBAR - Barra de herramientas */
+.p-toolbar {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 9️⃣ TOAST - Notificaciones */
+.p-toast .p-toast-message {
+  background: var(--surface-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);     /* 🔥 Redondeo de toasts */
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 1.25rem;
+}
+
+.p-toast .p-toast-message.p-toast-message-success {
+  border-left: 4px solid var(--success-color);  /* 🔥 Borde lateral de color */
+}
+
+.p-toast .p-toast-message.p-toast-message-error {
+  border-left: 4px solid var(--danger-color);
+}
+
+.p-toast .p-toast-message.p-toast-message-warn {
+  border-left: 4px solid var(--warning-color);
+}
+
+.p-toast .p-toast-message.p-toast-message-info {
+  border-left: 4px solid var(--info-color);
+}
+
+/* 🔟 PAGINATOR - Paginación */
+.p-paginator {
+  background: var(--surface-card);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page {
+  border-radius: var(--border-radius-sm);
+  min-width: 2.25rem;
+  height: 2.25rem;
+  margin: 0 0.125rem;
+  transition: all 0.2s;
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page:hover {
+  background: var(--surface-ground);
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+/* 1️⃣1️⃣ TOOLTIP */
+.p-tooltip .p-tooltip-text {
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   EJEMPLOS DE PERSONALIZACIÓN RÁPIDA
+   ============================================ */
+
+/* Ejemplo 1: Botones más redondeados */
+/*
+.p-button {
+  border-radius: 1rem;  
+}
+*/
+
+/* Ejemplo 2: Cambiar color principal a morado */
+/*
+:root {
+  --primary-color: #8b5cf6;
+  --primary-hover: #7c3aed;
+}
+*/
+
+/* Ejemplo 3: Botones con bordes gruesos */
+/*
+.p-button {
+  border: 3px solid currentColor;
+}
+*/
+
+/* Ejemplo 4: Cards con más sombra */
+/*
+.p-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+*/
+
+/* Ejemplo 5: Inputs redondeados */
+/*
+.p-inputtext {
+  border-radius: 9999px;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+*/
