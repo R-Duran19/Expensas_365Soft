@@ -11,25 +11,22 @@ use Inertia\Inertia;
 
 class AccesosController extends Controller
 {
-    /**
-     * Mostrar la vista principal de Inertia
-     * Esta ruta solo renderiza la página, NO devuelve datos
-     */
-    public function index()
+    public function index(Request $request)
     {
-        return Inertia::render('Accesos');
-    }
+        $search = $request->input('search');
 
-    /**
-     * Obtener todos los usuarios (para cargar en la tabla)
-     * Esta es la ruta que llama axios desde Vue
-     */
-    public function listar()
-    {
         $usuarios = User::with('role')
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('role', function ($roleQuery) use ($search) {
+                            $roleQuery->where('nombre', 'like', "%{$search}%");
+                        });
+                });
+            })
             ->orderBy('created_at', 'desc')
             ->get()
-            // ->where('estado', 1)
             ->map(function ($user) {
                 return [
                     'id' => $user->id,
@@ -39,9 +36,7 @@ class AccesosController extends Controller
                     'role' => $user->role ? [
                         'id' => $user->role->id,
                         'nombre' => $user->role->nombre,
-                        'activo' => $user->role->activo ?? true,
                     ] : null,
-                    'email_verified_at' => $user->email_verified_at,
                     'created_at' => $user->created_at->format('Y-m-d H:i:s'),
                 ];
             });
@@ -50,16 +45,15 @@ class AccesosController extends Controller
             ->orderBy('nombre')
             ->get(['id', 'nombre', 'descripcion']);
 
-        return response()->json([
-            'success' => true,
+        return Inertia::render('Accesos', [
             'usuarios' => $usuarios->values(),
             'roles' => $roles,
+            'filters' => [
+                'search' => $search, // ← Agregar esto
+            ],
         ]);
     }
 
-    /**
-     * Crear un nuevo usuario
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -77,23 +71,16 @@ class AccesosController extends Controller
             'role_id.exists' => 'El rol seleccionado no existe.',
         ]);
 
-        $user = User::create([
+        User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role_id' => $validated['role_id'],
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario creado exitosamente.',
-            'user' => $user->load('role'),
-        ], 201);
+        return redirect()->route('accesos')->with('success', 'Usuario creado correctamente.');
     }
 
-    /**
-     * Actualizar un usuario existente
-     */
     public function update(Request $request, int $id)
     {
         $user = User::findOrFail($id);
@@ -118,67 +105,54 @@ class AccesosController extends Controller
             'role_id' => $validated['role_id'],
         ]);
 
-        // Solo actualizar contraseña si se proporciona
         if (!empty($validated['password'])) {
             $user->update([
                 'password' => Hash::make($validated['password']),
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario actualizado exitosamente.',
-            'user' => $user->fresh()->load('role'),
-        ]);
+        return back()->with('success', 'Usuario actualizado correctamente.');
     }
 
-    /**
-     * Eliminar un usuario
-     */
-    public function destroy(int $id)
-    {
-        $user = User::findOrFail($id);
-
-        if ($user->id === auth()->id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No puedes eliminar tu propia cuenta.',
-            ], 403);
-        }
-
-        // ✅ CAMBIO: En lugar de delete(), cambiar estado
-        $user->update(['estado' => 0]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario desactivado exitosamente.',
-        ]);
-    }
-
-    /**
-     * Cambiar estado del usuario (activar/desactivar)
-     */
     public function toggleStatus(int $id)
     {
         $user = User::findOrFail($id);
 
         if ($user->id === auth()->id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No puedes cambiar el estado de tu propia cuenta.',
-            ], 403);
+            return back()->with('error', 'No puedes cambiar el estado de tu propia cuenta.');
         }
 
-        
         $nuevoEstado = $user->estado == 1 ? 0 : 1;
         $user->update(['estado' => $nuevoEstado]);
 
-        return response()->json([
-            'success' => true,
-            'message' => $nuevoEstado == 1
-                ? 'Usuario activado exitosamente.'
-                : 'Usuario desactivado exitosamente.',
-            'user' => $user->fresh()->load('role'),
+        $usuarios = User::with('role')->get();
+        $roles = Roles::all();
+
+        return back()->with([
+            'usuarios' => $usuarios,
+            'roles' => $roles,
+            'success' => $nuevoEstado == 1 ? 'Usuario activado.' : 'Usuario desactivado.',
+        ]);
+    }
+
+    public function destroy(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'No puedes eliminar tu propia cuenta.');
+        }
+
+        $nombreUsuario = $user->name;
+        $user->delete();
+
+        $usuarios = User::with('role')->get();
+        $roles = Roles::all();
+
+        return back()->with([
+            'usuarios' => $usuarios,
+            'roles' => $roles,
+            'success' => "Usuario {$nombreUsuario} eliminado correctamente.",
         ]);
     }
 }

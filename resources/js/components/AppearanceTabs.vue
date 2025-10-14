@@ -4,6 +4,20 @@ import { Monitor, Moon, Sun } from 'lucide-vue-next';
 
 const { appearance, updateAppearance } = useAppearance();
 
+// Función con debug
+const handleClick = (value: 'light' | 'dark' | 'system') => {
+    console.log('=== CLICK EN TEMA ===');
+    console.log('Valor clickeado:', value);
+    console.log('Appearance antes:', appearance.value);
+    
+    updateAppearance(value);
+    
+    console.log('Appearance después:', appearance.value);
+    console.log('LocalStorage:', localStorage.getItem('appearance'));
+    console.log('Clases HTML:', document.documentElement.className);
+    console.log('Tiene dark?:', document.documentElement.classList.contains('dark'));
+};
+
 const tabs = [
     { value: 'light', Icon: Sun, label: 'Claro' },
     { value: 'dark', Icon: Moon, label: 'Oscuro' },
@@ -18,7 +32,7 @@ const tabs = [
         <button
             v-for="{ value, Icon, label } in tabs"
             :key="value"
-            @click="updateAppearance(value)"
+            @click="handleClick(value)"
             :class="[
                 'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
                 appearance === value

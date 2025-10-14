@@ -1,87 +1,73 @@
 <script setup lang="ts">
 import AppLogo from '@/components/AppLogo.vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    NavigationMenu,
-    NavigationMenuItem,
-    NavigationMenuList,
-    navigationMenuTriggerStyle,
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 } from '@/components/ui/sheet';
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from '@/components/ui/tooltip';
-import UserMenuContent from '@/components/UserMenuContent.vue';
-import { getInitials } from '@/composables/useInitials';
-import { toUrl, urlIsActive } from '@/lib/utils';
-import { dashboard } from '@/routes';
-import type { BreadcrumbItem, NavItem } from '@/types';
-import { InertiaLinkProps, Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Menu, Search } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { toUrl, urlIsActive } from '@/lib/utils';
+import { allMainNavItems } from '@/config/navigation'; // 👈 NUEVO
+import { useAuth } from '@/composables/useAuth';
+import { getInitials } from '@/composables/useInitials';
+import UserMenuContent from '@/components/UserMenuContent.vue';
+import type { BreadcrumbItem } from '@/types';
+import { dashboard } from '@/routes';
 
 interface Props {
-    breadcrumbs?: BreadcrumbItem[];
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    breadcrumbs: () => [],
+  breadcrumbs: () => [],
 });
 
+const { hasAnyRole } = useAuth();
 const page = usePage();
 const auth = computed(() => page.props.auth);
 
-const isCurrentRoute = computed(
-    () => (url: NonNullable<InertiaLinkProps['href']>) =>
-        urlIsActive(url, page.url),
+const mainNavItems = computed(() =>
+  allMainNavItems.filter(item => hasAnyRole(item.roles || []))
 );
 
-const activeItemStyles = computed(
-    () => (url: NonNullable<InertiaLinkProps['href']>) =>
-        isCurrentRoute.value(toUrl(url))
-            ? 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-            : '',
-);
-
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Panel de Control',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-
+const rightNavItems = [
+  {
+    title: 'Documentación',
+    href: 'https://laravel.com/docs/starter-kits#vue',
+  },
 ];
 
-const rightNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
+const isCurrentRoute = (url: string) => urlIsActive(url, page.url);
+const activeItemStyles = (url: string) =>
+  isCurrentRoute(url)
+    ? 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+    : '';
 </script>
+
 
 <template>
     <div>

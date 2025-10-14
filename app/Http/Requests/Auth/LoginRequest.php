@@ -48,9 +48,15 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => 'El correo o la contraseña son incorrectos.', // Mensaje personalizado
+                'email' => 'El correo o la contraseña son incorrectos.',
             ]);
+        }
+        if ($user->estado != 1) {
+            RateLimiter::hit($this->throttleKey());
 
+            throw ValidationException::withMessages([
+                'email' => 'Tu cuenta está inactiva. Contacta al administrador.',
+            ]);
         }
 
         RateLimiter::clear($this->throttleKey());

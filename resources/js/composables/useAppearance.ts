@@ -1,99 +1,103 @@
-import { onMounted, ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
-type Appearance = 'light' | 'dark' | 'system';
+export type Appearance = 'light' | 'dark' | 'system';
 
-export function updateTheme(value: Appearance) {
-    if (typeof window === 'undefined') {
-        return;
-    }
+const APPEARANCE_KEY = 'appearance';
 
-    if (value === 'system') {
-        const mediaQueryList = window.matchMedia(
-            '(prefers-color-scheme: dark)',
-        );
-        const systemTheme = mediaQueryList.matches ? 'dark' : 'light';
-
-        document.documentElement.classList.toggle(
-            'dark',
-            systemTheme === 'dark',
-        );
-    } else {
-        document.documentElement.classList.toggle('dark', value === 'dark');
-    }
-}
-
-const setCookie = (name: string, value: string, days = 365) => {
-    if (typeof document === 'undefined') {
-        return;
-    }
-
-    const maxAge = days * 24 * 60 * 60;
-
-    document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
-};
-
-const mediaQuery = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return window.matchMedia('(prefers-color-scheme: dark)');
-};
-
-const getStoredAppearance = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return localStorage.getItem('appearance') as Appearance | null;
-};
-
-const handleSystemThemeChange = () => {
-    const currentAppearance = getStoredAppearance();
-
-    updateTheme(currentAppearance || 'system');
-};
-
-export function initializeTheme() {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    // Initialize theme from saved preference or default to system...
-    const savedAppearance = getStoredAppearance();
-    updateTheme(savedAppearance || 'system');
-
-    // Set up system theme change listener...
-    mediaQuery()?.addEventListener('change', handleSystemThemeChange);
-}
-
+// Estado reactivo compartido entre todas las instancias
 const appearance = ref<Appearance>('system');
+let isInitialized = false;
+let mediaQuery: MediaQueryList | null = null;
+let mediaQueryHandler: (() => void) | null = null;
+
+function getSystemAppearance(): 'light' | 'dark' {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+}
+
+function applyAppearance(newAppearance: Appearance) {
+    const effectiveAppearance = newAppearance === 'system' 
+        ? getSystemAppearance() 
+        : newAppearance;
+    
+    if (effectiveAppearance === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}
 
 export function useAppearance() {
-    onMounted(() => {
-        const savedAppearance = localStorage.getItem(
-            'appearance',
-        ) as Appearance | null;
+    function updateAppearance(newAppearance: Appearance) {
+        appearance.value = newAppearance;
+        localStorage.setItem(APPEARANCE_KEY, newAppearance);
+        applyAppearance(newAppearance);
+    }
 
-        if (savedAppearance) {
-            appearance.value = savedAppearance;
+    // Inicializar solo una vez
+    onMounted(() => {
+        if (!isInitialized) {
+            // Cargar desde localStorage
+            const savedAppearance = localStorage.getItem(APPEARANCE_KEY) as Appearance | null;
+            if (savedAppearance) {
+                appearance.value = savedAppearance;
+            }
+            
+            // Aplicar el tema
+            applyAppearance(appearance.value);
+
+            // Escuchar cambios en las preferencias del sistema
+            if (typeof window !== 'undefined') {
+                mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                mediaQueryHandler = () => {
+                    if (appearance.value === 'system') {
+                        applyAppearance('system');
+                    }
+                };
+                mediaQuery.addEventListener('change', mediaQueryHandler);
+            }
+
+            isInitialized = true;
+        } else {
+            // Si ya está inicializado, solo aplicar el tema actual
+            applyAppearance(appearance.value);
         }
     });
 
-    function updateAppearance(value: Appearance) {
-        appearance.value = value;
-
-        // Store in localStorage for client-side persistence...
-        localStorage.setItem('appearance', value);
-
-        // Store in cookie for SSR...
-        setCookie('appearance', value);
-
-        updateTheme(value);
-    }
+    // Limpiar listener cuando el componente se desmonte
+    onUnmounted(() => {
+        if (mediaQuery && mediaQueryHandler) {
+            mediaQuery.removeEventListener('change', mediaQueryHandler);
+        }
+    });
 
     return {
         appearance,
         updateAppearance,
+        getSystemAppearance,
     };
+}
+
+// Función de inicialización que se ejecuta antes de montar Vue
+export function initializeTheme() {
+    if (typeof window === 'undefined') return;
+    
+    const savedAppearance = localStorage.getItem(APPEARANCE_KEY) as Appearance | null;
+    const currentAppearance = savedAppearance || 'system';
+    
+    const effectiveAppearance = currentAppearance === 'system' 
+        ? getSystemAppearance() 
+        : currentAppearance;
+    
+    if (effectiveAppearance === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    
+    // Guardar en el estado reactivo
+    appearance.value = currentAppearance;
+    isInitialized = true;
 }

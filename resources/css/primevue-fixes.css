@@ -5,38 +5,40 @@
 
 /* 1️⃣ VARIABLES DE COLOR - Cambia estos valores */
 :root {
-  /* Colores principales */
-  --primary-color: #3b82f6;        /* Azul principal - cámbialo a tu color */
-  --primary-hover: #2563eb;        /* Azul hover */
-  --primary-color-text: #ffffff;   /* Texto sobre primary */
-  
+  /* Colores principales - usan las variables de app.css */
+  --primary-color: var(--color-primary);
+  --primary-hover: var(--color-secondary);
+  --primary-color-text: var(--color-primary-foreground);
+
   /* Colores de fondo */
-  --surface-ground: #f8f9fa;       /* Fondo general */
-  --surface-card: #ffffff;         /* Fondo de tarjetas */
-  
+  --surface-ground: var(--color-background);
+  --surface-card: var(--color-card);
+
   /* Colores de texto */
-  --text-color: #1f2937;           /* Texto principal */
-  --text-color-secondary: #6b7280; /* Texto secundario */
-  
+  --text-color: var(--color-foreground);
+  --text-color-secondary: var(--color-muted-foreground);
+
   /* Bordes */
-  --border-color: #e5e7eb;         /* Color de bordes */
-  --border-radius: 0.5rem;         /* Radio de borde (8px) */
-  --border-radius-sm: 0.375rem;    /* Radio pequeño (6px) */
-  --border-radius-lg: 0.75rem;     /* Radio grande (12px) */
-  
+  --border-color: var(--color-border);
+  --border-radius: var(--radius);
+  --border-radius-sm: var(--radius-sm);
+  --border-radius-lg: var(--radius-lg);
+
   /* Colores de estado */
-  --success-color: #10b981;        /* Verde éxito */
+  --success-color: #10b981;
+  /* Verde éxito */
   --success-hover: #059669;
-  --danger-color: #ef4444;         /* Rojo peligro */
+  --danger-color: var(--color-destructive);
   --danger-hover: #dc2626;
-  --warning-color: #f59e0b;        /* Amarillo advertencia */
-  --info-color: #3b82f6;           /* Azul info */
-  --secondary-color: #6b7280;      /* Gris secundario */
-  
-  /* Sombras */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --warning-color: #f59e0b;
+  /* Amarillo advertencia */
+  --info-color: var(--color-accent);
+  --secondary-color: var(--color-secondary);
+
+  /* Sombras con tonos cálidos */
+  --shadow-sm: 0 1px 2px 0 rgba(50, 34, 22, 0.05);
+  --shadow: 0 1px 3px 0 rgba(50, 34, 22, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(50, 34, 22, 0.1);
 }
 
 /* Modo oscuro */
@@ -51,14 +53,19 @@
 /* 2️⃣ BOTONES - Personaliza aquí */
 .p-button {
   /* Tamaño y espaciado */
-  padding: 0.625rem 1.25rem;      /* Aumenta/disminuye el padding */
-  font-size: 0.875rem;             /* Tamaño de fuente */
-  font-weight: 600;                /* Grosor de fuente */
-  
+  padding: 0.625rem 1.25rem;
+  /* Aumenta/disminuye el padding */
+  font-size: 0.875rem;
+  /* Tamaño de fuente */
+  font-weight: 600;
+  /* Grosor de fuente */
+
   /* Bordes */
-  border-radius: 0.5rem;           /* 🔥 Cambia esto para más/menos redondeo */
-  border: 2px solid transparent;   /* Grosor del borde */
-  
+  border-radius: 0.5rem;
+  /* 🔥 Cambia esto para más/menos redondeo */
+  border: 2px solid transparent;
+  /* Grosor del borde */
+
   /* Efectos */
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
@@ -66,7 +73,8 @@
 }
 
 .p-button:hover {
-  transform: translateY(-1px);     /* Efecto de elevación al hover */
+  transform: translateY(-1px);
+  /* Efecto de elevación al hover */
   box-shadow: var(--shadow);
 }
 
@@ -76,6 +84,7 @@
   background: var(--primary-color);
   border-color: var(--primary-color);
   color: var(--primary-color-text);
+  border-radius: 1rem;
 }
 
 .p-button.p-button-primary:hover {
@@ -99,7 +108,8 @@
 .p-button.p-button-danger {
   background: var(--danger-color);
   border-color: var(--danger-color);
-  color: white;
+  color: rgb(255, 255, 255);
+  border-radius: 1rem;
 }
 
 .p-button.p-button-danger:hover {
@@ -147,7 +157,8 @@
 
 /* Botones rounded (redondos) */
 .p-button.p-button-rounded {
-  border-radius: 9999px;          /* 🔥 Botones completamente redondos */
+  border-radius: 9999px;
+  /* 🔥 Botones completamente redondos */
 }
 
 /* Botones small */
@@ -166,10 +177,12 @@
 .p-inputtext {
   font-size: 0.875rem;
   padding: 0.625rem 0.875rem;
-  border: 2px solid var(--border-color);   /* 🔥 Cambia grosor del borde */
+  border: 2px solid var(--border-color);
+  /* 🔥 Cambia grosor del borde */
   background: var(--surface-card);
   color: var(--text-color);
-  border-radius: 0.5rem;                   /* 🔥 Cambia redondeo */
+  border-radius: 0.5rem;
+  /* 🔥 Cambia redondeo */
   transition: all 0.2s;
 }
 
@@ -180,14 +193,16 @@
 .p-inputtext:enabled:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);  /* Sombra al focus */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  /* Sombra al focus */
 }
 
 /* 4️⃣ CARDS - Tarjetas */
 .p-card {
   background: var(--surface-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);   /* 🔥 Cambia redondeo de cards */
+  border-radius: var(--border-radius-lg);
+  /* 🔥 Cambia redondeo de cards */
   box-shadow: var(--shadow);
 }
 
@@ -202,27 +217,30 @@
   overflow: hidden;
 }
 
-.p-datatable .p-datatable-thead > tr > th {
+.p-datatable .p-datatable-thead>tr>th {
   background: var(--surface-ground);
   color: var(--text-color);
   border: 1px solid var(--border-color);
   padding: 0.875rem 1rem;
-  font-weight: 700;                        /* 🔥 Grosor de fuente headers */
+  font-weight: 700;
+  /* 🔥 Grosor de fuente headers */
   font-size: 0.875rem;
-  text-transform: uppercase;               /* 🔥 Mayúsculas en headers */
+  text-transform: uppercase;
+  /* 🔥 Mayúsculas en headers */
   letter-spacing: 0.05em;
 }
 
-.p-datatable .p-datatable-tbody > tr {
+.p-datatable .p-datatable-tbody>tr {
   transition: all 0.15s;
 }
 
-.p-datatable .p-datatable-tbody > tr:hover {
+.p-datatable .p-datatable-tbody>tr:hover {
   background: var(--surface-ground);
-  cursor: pointer;                         /* 🔥 Cursor pointer al hover */
+  cursor: pointer;
+  /* 🔥 Cursor pointer al hover */
 }
 
-.p-datatable .p-datatable-tbody > tr > td {
+.p-datatable .p-datatable-tbody>tr>td {
   border: 1px solid var(--border-color);
   padding: 0.875rem 1rem;
   font-size: 0.875rem;
@@ -231,28 +249,33 @@
 /* 6️⃣ DIALOG - Modales */
 .p-dialog {
   background: var(--surface-card);
-  border: none;
-  border-radius: var(--border-radius-lg);   /* 🔥 Redondeo de modales */
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  /* 🔥 Redondeo de modales */
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .p-dialog .p-dialog-header {
   background: var(--surface-card);
   padding: 1.5rem 1.75rem;
-  border-bottom: 2px solid var(--border-color);  /* 🔥 Grosor de línea */
+  border-bottom: 2px solid var(--border-color);
+  /* 🔥 Grosor de línea */
   border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
 .p-dialog .p-dialog-header .p-dialog-title {
   font-size: 1.125rem;
-  font-weight: 700;                        /* 🔥 Grosor título modal */
+  font-weight: 700;
+  /* 🔥 Grosor título modal */
 }
 
 .p-dialog .p-dialog-content {
   padding: 1.75rem;
+  background: var(--color-card);
 }
 
 .p-dialog .p-dialog-footer {
+  background: var(--color-card);
   padding: 1.25rem 1.75rem;
   border-top: 2px solid var(--border-color);
   border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
@@ -262,7 +285,8 @@
 .p-tag {
   font-size: 0.75rem;
   padding: 0.375rem 0.75rem;
-  border-radius: 9999px;                   /* 🔥 Tags redondos */
+  border-radius: 9999px;
+  /* 🔥 Tags redondos */
   font-weight: 600;
   letter-spacing: 0.025em;
 }
@@ -311,13 +335,15 @@
 .p-toast .p-toast-message {
   background: var(--surface-card);
   border: 2px solid var(--border-color);
-  border-radius: var(--border-radius);     /* 🔥 Redondeo de toasts */
+  border-radius: var(--border-radius);
+  /* 🔥 Redondeo de toasts */
   box-shadow: var(--shadow-lg);
   padding: 1rem 1.25rem;
 }
 
 .p-toast .p-toast-message.p-toast-message-success {
-  border-left: 4px solid var(--success-color);  /* 🔥 Borde lateral de color */
+  border-left: 4px solid var(--success-color);
+  /* 🔥 Borde lateral de color */
 }
 
 .p-toast .p-toast-message.p-toast-message-error {

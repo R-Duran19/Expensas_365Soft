@@ -1,377 +1,384 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { categorias } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/vue3';
-import axios from 'axios';
-
-// PrimeVue
-import { useToast } from 'primevue/usetoast';
-import { useConfirm } from 'primevue/useconfirm';
+import { useAppearance } from '@/composables/useAppearance';
+import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import Button from 'primevue/button';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
-import Toast from 'primevue/toast';
-import ConfirmDialog from 'primevue/confirmdialog';
-import Tag from 'primevue/tag';
 import Card from 'primevue/card';
-import Toolbar from 'primevue/toolbar';
+import Message from 'primevue/message';
+import { Head } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { ref } from 'vue';
 
-// Breadcrumbs
-const breadcrumbs: BreadcrumbItem[] = [
-  { title: 'Categorias', href: categorias().url },
-];
-
-// Toast & Confirm
-const toast = useToast();
-const confirm = useConfirm();
-
-// Estado
-const categoriasData = ref<Array<any>>([]);
-const loading = ref(false);
-const showDialog = ref(false);
-const form = reactive({ 
-  id: null as number | null, 
-  nombre: '', 
-  idproyecto: null as number | null, 
-  estado: true 
-});
-const filtro = ref('');
-
-// Filtrado
-const categoriasFiltradas = computed(() => {
-  if (!filtro.value) return categoriasData.value;
-  return categoriasData.value.filter(c =>
-    c.nombre.toLowerCase().includes(filtro.value.toLowerCase())
-  );
-});
-
-// Cargar categorías
-const cargarCategorias = async () => {
-  loading.value = true;
-  try {
-    const { data } = await axios.get('/categorias_terrenos');
-    categoriasData.value = data.data;
-  } catch (error) {
-    console.error(error);
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error', 
-      detail: 'No se pudo cargar categorías',
-      life: 3000 
-    });
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Guardar categoría
-const guardarCategoria = async () => {
-  if (!form.nombre.trim()) {
-    toast.add({ 
-      severity: 'warn', 
-      summary: 'Advertencia', 
-      detail: 'El nombre es requerido',
-      life: 3000 
-    });
-    return;
-  }
-
-  try {
-    if (form.id) {
-      await axios.put(`/categorias_terrenos/${form.id}`, form);
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Actualizado', 
-        detail: 'Categoría actualizada correctamente',
-        life: 3000 
-      });
-    } else {
-      await axios.post('/categorias_terrenos', form);
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Creado', 
-        detail: 'Categoría creada correctamente',
-        life: 3000 
-      });
-    }
-    showDialog.value = false;
-    await cargarCategorias();
-    limpiarFormulario();
-  } catch (error) {
-    console.error(error);
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error', 
-      detail: 'No se pudo guardar la categoría',
-      life: 3000 
-    });
-  }
-};
-
-// Editar categoría
-const editarCategoria = (categoria: any) => {
-  form.id = categoria.id;
-  form.nombre = categoria.nombre;
-  form.idproyecto = categoria.idproyecto;
-  form.estado = categoria.estado;
-  showDialog.value = true;
-};
-
-// Activar / desactivar con confirmación
-const toggleEstado = (categoria: any) => {
-  confirm.require({
-    message: `¿Está seguro de ${categoria.estado ? 'desactivar' : 'activar'} la categoría "${categoria.nombre}"?`,
-    header: 'Confirmación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Sí',
-    rejectLabel: 'No',
-    accept: async () => {
-      try {
-        await axios.patch(
-          `/categorias_terrenos/${categoria.estado ? 'desactivar' : 'activar'}/${categoria.id}`
-        );
-        toast.add({
-          severity: 'success',
-          summary: 'Éxito',
-          detail: `Categoría ${categoria.estado ? 'desactivada' : 'activada'} correctamente`,
-          life: 3000
-        });
-        await cargarCategorias();
-      } catch (error) {
-        console.error(error);
-        toast.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'No se pudo cambiar el estado',
-          life: 3000 
-        });
-      }
-    }
-  });
-};
-
-// Nueva categoría
-const nuevaCategoria = () => {
-  limpiarFormulario();
-  showDialog.value = true;
-};
-
-// Limpiar formulario
-const limpiarFormulario = () => {
-  form.id = null;
-  form.nombre = '';
-  form.idproyecto = null;
-  form.estado = true;
-};
-
-// Exportar CSV
-const exportar = () => {
-  let csv = 'Nombre,Proyecto,Estado\n';
-  categoriasData.value.forEach(c => {
-    csv += `${c.nombre},${c.proyecto?.nombre || ''},${c.estado ? 'Activo' : 'Inactivo'}\n`;
-  });
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.setAttribute('download', 'categorias_terrenos.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  
-  toast.add({ 
-    severity: 'info', 
-    summary: 'Exportado', 
-    detail: 'Archivo descargado correctamente',
-    life: 3000 
-  });
-};
-
-// Template para estado usando Tag de PrimeVue
-const estadoBodyTemplate = (rowData: any) => {
-  return rowData.estado 
-    ? { severity: 'success', value: 'Activo' }
-    : { severity: 'danger', value: 'Inactivo' };
-};
-
-onMounted(() => cargarCategorias());
+const { appearance } = useAppearance();
 </script>
 
 <template>
-  <AppLayout :breadcrumbs="breadcrumbs">
-    <Head title="Categorías de Terrenos" />
 
-    <Card>
-      <!-- Toolbar de PrimeVue -->
-      <template #content>
-        <Toolbar class="mb-4">
-          <template #start>
-            <div class="flex gap-2 align-items-center">
-              <span class="p-input-icon-left">
-                <i class="pi pi-search" />
-                <InputText 
-                  v-model="filtro" 
-                  placeholder="Buscar por nombre..." 
-                  style="width: 300px"
-                />
-              </span>
-              <small class="text-muted">
-                {{ categoriasFiltradas.length }} categorías encontradas
-              </small>
+    <Head title="Test de Tema Completo" />
+    <AppLayout>
+        <div class="min-h-screen p-8 space-y-12">
+
+            <!-- HEADER -->
+            <div class="flex items-center justify-between bg-card rounded-lg p-6 shadow-soft border-2 border-border">
+                <div>
+                    <h1 class="text-4xl font-bold text-foreground mb-2">
+                        Guía de Variables de Tema
+                    </h1>
+                    <p class="text-muted-foreground">
+                        Modo actual: <strong>{{ appearance }}</strong>
+                    </p>
+                </div>
+                <AppearanceTabs />
             </div>
-          </template>
 
-          <template #end>
-            <div class="flex gap-2">
-              <Button 
-                label="Exportar" 
-                icon="pi pi-file-export" 
-                severity="secondary"
-                @click="exportar"
-                :disabled="categoriasData.length === 0"
-              />
-              <Button 
-                label="Nueva Categoría" 
-                icon="pi pi-plus" 
-                severity="success"
-                @click="nuevaCategoria"
-              />
-            </div>
-          </template>
-        </Toolbar>
+            <!-- SECCIÓN 1: VARIABLES DE FONDO -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">1. Variables de Fondo</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-6">
+                        <p class="text-muted-foreground text-sm">Estos colores cambian según el tema (claro/oscuro)</p>
 
-        <!-- DataTable de PrimeVue -->
-        <DataTable 
-          :value="categoriasFiltradas" 
-          :loading="loading"
-          striped-rows
-          paginator
-          :rows="10"
-          :rows-per-page-options="[5, 10, 25, 50]"
-          paginator-template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-          current-page-report-template="Mostrando {first} a {last} de {totalRecords} categorías"
-          responsive-layout="scroll"
-          :global-filter-fields="['nombre', 'proyecto.nombre']"
-        >
-          <template #empty>
-            <div class="p-4 text-center">
-              <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p class="mt-3">No hay categorías disponibles</p>
-            </div>
-          </template>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Background -->
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Fondo Principal</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--background)"></div>
+                                <code class="text-xs text-muted-foreground">var(--background)</code>
+                                <p class="text-xs text-muted-foreground">Modo claro: #dceaff | Modo oscuro: #1e293b</p>
+                            </div>
 
-          <template #loading>
-            Cargando categorías...
-          </template>
+                            <!-- Card -->
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Fondo Tarjeta</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--card)"></div>
+                                <code class="text-xs text-muted-foreground">var(--card)</code>
+                                <p class="text-xs text-muted-foreground">Modo claro: #288fb8 | Modo oscuro: #334155</p>
+                            </div>
 
-          <Column field="nombre" header="Nombre" sortable>
-            <template #body="{ data }">
-              <strong>{{ data.nombre }}</strong>
-            </template>
-          </Column>
+                            <!-- Popover -->
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Fondo Popover</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--popover)"></div>
+                                <code class="text-xs text-muted-foreground">var(--popover)</code>
+                                <p class="text-xs text-muted-foreground">Modo claro: #ffffff | Modo oscuro: #334155</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
 
-          <Column field="proyecto.nombre" header="Proyecto" sortable>
-            <template #body="{ data }">
-              {{ data.proyecto?.nombre || '—' }}
-            </template>
-          </Column>
+            <!-- SECCIÓN 2: VARIABLES DE TEXTO -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">2. Variables de Texto</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-6">
+                        <p class="text-muted-foreground text-sm">Colores de texto que contrastan con los fondos</p>
 
-          <Column field="estado" header="Estado" sortable style="width: 120px">
-            <template #body="{ data }">
-              <Tag 
-                :value="estadoBodyTemplate(data).value" 
-                :severity="estadoBodyTemplate(data).severity"
-              />
-            </template>
-          </Column>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Foreground -->
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Texto Principal</p>
+                                <div class="h-20 rounded-lg border-2 border-border p-4 flex items-center justify-center"
+                                    style="background-color: var(--card); color: var(--foreground)">
+                                    <span style="color: var(--foreground)">Este es el texto principal</span>
+                                </div>
+                                <code class="text-xs text-muted-foreground">var(--foreground)</code>
+                            </div>
 
-          <Column header="Acciones" style="width: 150px">
-            <template #body="{ data }">
-              <div class="flex gap-2">
+                            <!-- Muted Foreground -->
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Texto Secundario</p>
+                                <div class="h-20 rounded-lg border-2 border-border p-4 flex items-center justify-center"
+                                    style="background-color: var(--card); color: var(--muted-foreground)">
+                                    <span style="color: var(--muted-foreground)">Este es texto más subtle</span>
+                                </div>
+                                <code class="text-xs text-muted-foreground">var(--muted-foreground)</code>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- SECCIÓN 3: COLORES DE ACENTO -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">3. Colores de Acento (Primario, Secundario, Error, Warning)</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-8">
+                        <p class="text-muted-foreground text-sm">Los 4 colores principales para acciones y estados</p>
+
+                        <!-- Paleta de colores -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Primario (Azul)</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--primary)"></div>
+                                <code class="text-xs text-muted-foreground">var(--primary)</code>
+                                <p class="text-xs text-muted-foreground">Claro: #3b82f6 | Oscuro: #60a5fa</p>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Secundario (Verde)</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--secondary)"></div>
+                                <code class="text-xs text-muted-foreground">var(--secondary)</code>
+                                <p class="text-xs text-muted-foreground">Claro: #10b981 | Oscuro: #34d399</p>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Destructivo (Rojo)</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--destructive)"></div>
+                                <code class="text-xs text-muted-foreground">var(--destructive)</code>
+                                <p class="text-xs text-muted-foreground">Claro: #ef4444 | Oscuro: #f87171</p>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Advertencia (Ámbar)</p>
+                                <div class="h-24 rounded-lg border-2 border-border"
+                                    style="background-color: var(--warning)"></div>
+                                <code class="text-xs text-muted-foreground">var(--warning)</code>
+                                <p class="text-xs text-muted-foreground">Claro: #f59e0b | Oscuro: #fbbf24</p>
+                            </div>
+                        </div>
+
+                        <!-- Botones con variables -->
+                        <div class="space-y-3">
+                            <p class="text-sm font-semibold text-foreground">Ejemplo: Botones</p>
+                            <div class="flex flex-wrap gap-3">
+                                <Button label="Primario" />
+                                <Button label="Secundario" severity="secondary" />
+                                <Button label="Éxito" severity="success" />
+                                <Button label="Peligro" severity="danger" />
+                                <Button label="Advertencia" severity="warn" />
+                                <Button label="Outlined" outlined />
+                                <Button label="Text" text />
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- SECCIÓN 4: VARIABLES DE UTILIDAD -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">4. Variables de Utilidad</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Borde</p>
+                                <div class="h-20 rounded-lg p-4 flex items-center"
+                                    style="border: 2px solid var(--border); background-color: var(--card)">
+                                    <span class="text-sm" style="color: var(--muted-foreground)">Con
+                                        var(--border)</span>
+                                </div>
+                                <code class="text-xs text-muted-foreground">var(--border)</code>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Input (Focus)</p>
+                                <InputText placeholder="Haz focus aquí" class="w-full" />
+                                <code class="text-xs text-muted-foreground">var(--input) + var(--ring)</code>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm font-semibold text-foreground">Accent</p>
+                                <div class="h-20 rounded-lg p-4 flex items-center"
+                                    style="background-color: var(--accent); color: var(--accent-foreground)">
+                                    <span class="text-sm">Hover o resalte</span>
+                                </div>
+                                <code class="text-xs text-muted-foreground">var(--accent)</code>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- SECCIÓN 5: GRADILLA DE COLORES TAILWIND -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">5. Gradilla de Colores Tailwind (primary-50 a primary-950)</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-6">
+                        <!-- Primario -->
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-foreground">Color Primario (Azul)</p>
+                            <div class="grid grid-cols-11 gap-1">
+                                <div v-for="shade in ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']"
+                                    :key="shade"
+                                    class="h-16 rounded-lg border border-border flex items-center justify-center text-xs font-semibold"
+                                    :style="{ backgroundColor: `var(--color-primary-${shade})` }">
+                                    {{ shade }}
+                                </div>
+                            </div>
+                            <p class="text-xs text-muted-foreground">Usa: <code
+                                    class="bg-muted px-2 py-1 rounded">bg-primary-500</code> o <code
+                                    class="bg-muted px-2 py-1 rounded">text-primary-600</code></p>
+                        </div>
+
+                        <!-- Secundario -->
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-foreground">Color Secundario (Verde)</p>
+                            <div class="grid grid-cols-11 gap-1">
+                                <div v-for="shade in ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']"
+                                    :key="shade"
+                                    class="h-16 rounded-lg border border-border flex items-center justify-center text-xs font-semibold"
+                                    :style="{ backgroundColor: `var(--color-secondary-${shade})` }">
+                                    {{ shade }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error -->
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-foreground">Color Error (Rojo)</p>
+                            <div class="grid grid-cols-11 gap-1">
+                                <div v-for="shade in ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']"
+                                    :key="shade"
+                                    class="h-16 rounded-lg border border-border flex items-center justify-center text-xs font-semibold"
+                                    :style="{ backgroundColor: `var(--color-error-${shade})` }">
+                                    {{ shade }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warning -->
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-foreground">Color Warning (Ámbar)</p>
+                            <div class="grid grid-cols-11 gap-1">
+                                <div v-for="shade in ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']"
+                                    :key="shade"
+                                    class="h-16 rounded-lg border border-border flex items-center justify-center text-xs font-semibold"
+                                    :style="{ backgroundColor: `var(--color-warning-${shade})` }">
+                                    {{ shade }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- SECCIÓN 6: EJEMPLOS PRÁCTICOS -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">6. Ejemplos Prácticos de Uso</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-6">
+                        <!-- Alert Success -->
+                        <div class="p-4 rounded-lg border-l-4"
+                            style="background-color: var(--secondary); border-left-color: var(--secondary); color: var(--secondary-foreground)">
+                            <p class="font-semibold">✓ Éxito</p>
+                            <p class="text-sm opacity-90">Usa <code>var(--secondary)</code> +
+                                <code>var(--secondary-foreground)</code>
+                            </p>
+                        </div>
+
+                        <!-- Alert Error -->
+                        <div class="p-4 rounded-lg border-l-4"
+                            style="background-color: var(--destructive); border-left-color: var(--destructive); color: var(--destructive-foreground)">
+                            <p class="font-semibold">✗ Error</p>
+                            <p class="text-sm opacity-90">Usa <code>var(--destructive)</code> +
+                                <code>var(--destructive-foreground)</code>
+                            </p>
+                        </div>
+
+                        <!-- Alert Warning -->
+                        <div class="p-4 rounded-lg border-l-4"
+                            style="background-color: var(--warning); border-left-color: var(--warning); color: var(--warning-foreground)">
+                            <p class="font-semibold">⚠ Advertencia</p>
+                            <p class="text-sm opacity-90">Usa <code>var(--warning)</code> +
+                                <code>var(--warning-foreground)</code>
+                            </p>
+                        </div>
+
+                        <!-- Card personalizada -->
+                        <div class="p-6 rounded-lg border-2"
+                            style="background-color: var(--card); border-color: var(--border); color: var(--card-foreground)">
+                            <h3 class="text-lg font-semibold mb-2" style="color: var(--foreground)">Card Personalizada
+                            </h3>
+                            <p class="mb-4" style="color: var(--muted-foreground)">Esta card usa todas las variables de
+                                tema</p>
+                            <div class="flex gap-2">
+                                <button class="px-4 py-2 rounded-lg font-semibold"
+                                    style="background-color: var(--primary); color: var(--primary-foreground)">
+                                    Acción
+                                </button>
+                                <button class="px-4 py-2 rounded-lg font-semibold border-2"
+                                    style="border-color: var(--primary); color: var(--primary); background-color: transparent">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- SECCIÓN 7: CÓDIGO DE EJEMPLO -->
+            <Card>
+                <template #title>
+                    <h2 class="text-2xl font-semibold">7. Cómo Usar en Tu Código</h2>
+                </template>
+                <template #content>
+                    <div class="space-y-4">
+                        <div class="border-l-4 border-primary pl-4 py-2 space-y-2">
+                            <p class="font-semibold text-foreground text-sm">Opción 1: Style binding (Vue)</p>
+                            <pre class="bg-muted p-3 rounded text-xs text-foreground overflow-x-auto"><code>&lt;div :style="{ 
+  backgroundColor: 'var(--card)',
+  color: 'var(--foreground)',
+  borderColor: 'var(--border)'
+}"&gt;
+  Contenido
+&lt;/div&gt;</code></pre>
+                        </div>
+
+                        <div class="border-l-4 border-primary pl-4 py-2 space-y-2">
+                            <p class="font-semibold text-foreground text-sm">Opción 2: Tailwind con variables</p>
+                            <pre class="bg-muted p-3 rounded text-xs text-foreground overflow-x-auto"><code>&lt;div class="bg-[--card] text-[--foreground] 
+         border-2 border-[--border] rounded-lg p-4"&gt;
+  Contenido
+&lt;/div&gt;</code></pre>
+                        </div>
+
+                        <div class="border-l-4 border-primary pl-4 py-2 space-y-2">
+                            <p class="font-semibold text-foreground text-sm">Opción 3: CSS puro</p>
+                            <pre class="bg-muted p-3 rounded text-xs text-foreground overflow-x-auto"><code>.mi-card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}</code></pre>
+                        </div>
+
+                        <div class="border-l-4 border-primary pl-4 py-2 space-y-2">
+                            <p class="font-semibold text-foreground text-sm">Opción 4: PrimeVue (automático)</p>
+                            <pre class="bg-muted p-3 rounded text-xs text-foreground overflow-x-auto"><code>&lt;Button label="Click" severity="primary" /&gt;
+&lt;Card&gt;
+  &lt;template #title&gt;Título&lt;/template&gt;
+  &lt;template #content&gt;Contenido&lt;/template&gt;
+&lt;/Card&gt;</code></pre>
+                            <p class="text-xs text-muted-foreground">PrimeVue respeta automáticamente tus variables
+                                definidas en presets.ts</p>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+            <div class="flex">
                 <Button 
-                  icon="pi pi-pencil" 
-                  severity="info"
-                  text
-                  rounded
-                  @click="editarCategoria(data)"
-                  v-tooltip.top="'Editar'"
-                />
-                <Button 
-                  :icon="data.estado ? 'pi pi-times' : 'pi pi-check'"
-                  :severity="data.estado ? 'danger' : 'success'"
-                  text
-                  rounded
-                  @click="toggleEstado(data)"
-                  v-tooltip.top="data.estado ? 'Desactivar' : 'Activar'"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </template>
-    </Card>
+                label="Volver a Categorías" 
+                icon="pi pi-arrow-left" 
+                class="px-2 py-1 font-semibold"
+                style="background-color: var(--primary); color: var(--primary-foreground) "/>
 
-    <!-- Dialog de PrimeVue -->
-    <Dialog 
-      v-model:visible="showDialog" 
-      :header="form.id ? 'Editar Categoría' : 'Nueva Categoría'"
-      modal
-      :style="{ width: '500px' }"
-      :draggable="false"
-    >
-      <div class="flex gap-3 mt-3 flex-column">
-        <div class="flex gap-2 flex-column">
-          <label for="nombre" class="font-semibold">Nombre de la Categoría *</label>
-          <InputText 
-            id="nombre"
-            v-model="form.nombre" 
-            placeholder="Ingrese el nombre de la categoría" 
-            autofocus
-            :invalid="!form.nombre && form.nombre !== ''"
-          />
+
+            </div>
+
         </div>
-
-        <div class="flex gap-2 flex-column">
-          <label for="idproyecto" class="font-semibold">ID Proyecto</label>
-          <InputText 
-            id="idproyecto"
-            v-model="form.idproyecto" 
-            placeholder="Ingrese el ID del proyecto (opcional)"
-            type="number"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button 
-          label="Cancelar" 
-          icon="pi pi-times" 
-          text
-          @click="showDialog = false"
-        />
-        <Button 
-          label="Guardar" 
-          icon="pi pi-check" 
-          @click="guardarCategoria"
-          :disabled="!form.nombre.trim()"
-        />
-      </template>
-    </Dialog>
-
-    <!-- Toast de PrimeVue -->
-    <Toast position="top-right" />
-
-    <!-- ConfirmDialog de PrimeVue -->
-    <ConfirmDialog />
-  </AppLayout>
+    </AppLayout>
 </template>
-
-<style scoped>
-/* Estilos adicionales si es necesario */
-.text-muted {
-  color: var(--text-color-secondary);
-}
-</style>
