@@ -44,19 +44,16 @@ const handleSubmit = () => {
       emit('update:open', false);
       showSuccess(
         'Usuario actualizado',
-        `Los datos de ${props.usuario.name} han sido actualizados exitosamente.`
+        `Los datos de ${props.usuario.name} han sido actualizados.`
       );
-      window.location.reload();
     },
     onError: (errors) => {
-      console.error('Errores de validación:', errors);
-      showError(
-        'Error al actualizar',
-        'Por favor, verifica los datos ingresados e intenta nuevamente.'
-      );
+      console.error(errors);
+      showError('Error al actualizar', 'Verifica los datos.');
     }
   });
 };
+
 
 const handleCancel = () => {
   emit('update:open', false);
