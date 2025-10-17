@@ -44,7 +44,6 @@ class Propiedad extends Model
     {
         return $this->belongsToMany(Propietario::class, 'propietario_propiedad')
             ->withPivot([
-                'porcentaje_participacion',
                 'fecha_inicio',
                 'fecha_fin',
                 'es_propietario_principal',
@@ -70,7 +69,6 @@ class Propiedad extends Model
             ->wherePivot('es_propietario_principal', true)
             ->whereNull('propietario_propiedad.fecha_fin')
             ->withPivot([
-                'porcentaje_participacion',
                 'fecha_inicio',
                 'observaciones'
             ])

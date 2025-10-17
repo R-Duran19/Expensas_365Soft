@@ -6,13 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Search, Plus, X } from 'lucide-vue-next';
 import PropietarioFormDialog from './PropietarioFormDialog.vue';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface Propiedad {
   id: number;
@@ -105,20 +98,6 @@ const hasActiveFilters = () => {
             class="pl-8"
           />
         </div>
-      </div>
-
-      <div class="w-48">
-        <Label for="estado">Estado</Label>
-        <Select v-model="activo">
-          <SelectTrigger id="estado">
-            <SelectValue placeholder="Todos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="true">Activos</SelectItem>
-            <SelectItem value="false">Inactivos</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <Button 

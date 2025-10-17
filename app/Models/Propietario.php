@@ -3,13 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Propietario extends Model
 {
-    use SoftDeletes;
-
     protected $table = 'propietarios';
 
     protected $fillable = [
@@ -36,7 +33,6 @@ class Propietario extends Model
     {
         return $this->belongsToMany(Propiedad::class, 'propietario_propiedad')
             ->withPivot([
-                'porcentaje_participacion',
                 'fecha_inicio',
                 'fecha_fin',
                 'es_propietario_principal',

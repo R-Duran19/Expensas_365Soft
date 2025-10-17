@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,9 +21,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import PropietarioFormDialog from './PropietarioFormDialog.vue';
-import PropietarioPropiedadesDialog from './PropietarioPropiedadesDialog.vue';
 import { useNotification } from '@/composables/useNotification';
 import { useConfirm } from 'primevue/useconfirm';
+import axios from 'axios';
 
 interface TipoPropiedad {
   id: number;
@@ -37,7 +37,6 @@ interface Propiedad {
   metros_cuadrados: number;
   tipo_propiedad: TipoPropiedad;
   pivot?: {
-    porcentaje_participacion: number;
     fecha_inicio: string;
     es_propietario_principal: boolean;
   };
@@ -68,39 +67,56 @@ interface PaginatedPropietarios {
 
 interface Props {
   propietarios: PaginatedPropietarios;
-  propiedades?: Propiedad[];
+  selectedPropietario?: Propietario | null;
+  showPropiedadesDialog?: boolean;
 }
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+  'update:show-propiedades-dialog': [value: boolean];
+  'update:selected-propietario': [value: Propietario | null];
+}>();
 
 const { showSuccess, showError } = useNotification();
 const confirm = useConfirm();
 
 const showEditDialog = ref(false);
-const showPropiedadesDialog = ref(false);
-const selectedPropietario = ref<Propietario | null>(null);
 
-const editPropietario = (propietario: Propietario) => {
-  selectedPropietario.value = propietario;
-  showEditDialog.value = true;
+const localSelectedPropietario = ref<Propietario | null>(null);
+const localShowPropiedadesDialog = ref(false);
+
+// Sincronizar con las props del padre
+watch(() => props.selectedPropietario, (newVal) => {
+  localSelectedPropietario.value = newVal;
+});
+
+watch(() => props.showPropiedadesDialog, (newVal) => {
+  localShowPropiedadesDialog.value = newVal ?? false;
+});
+
+// Emitir cambios al padre
+watch(localShowPropiedadesDialog, (newVal) => {
+  emit('update:show-propiedades-dialog', newVal);
+});
+
+watch(localSelectedPropietario, (newVal) => {
+  emit('update:selected-propietario', newVal);
+});
+
+const editPropietario = async (propietario: Propietario) => {
+  try {
+    // Hacer una petición para obtener los datos completos del propietario
+    const response = await axios.get(`/propietarios/${propietario.id}`);
+    localSelectedPropietario.value = response.data.propietario;
+    showEditDialog.value = true;
+  } catch (error) {
+    showError('Error al cargar los datos del propietario');
+    console.error(error);
+  }
 };
 
 const viewPropiedades = (propietario: Propietario) => {
-  // Cargar propiedades completas si no están cargadas
-  if (!propietario.propiedades || propietario.propiedades.length === 0) {
-    router.get(`/propietarios/${propietario.id}`, {}, {
-      preserveState: true,
-      preserveScroll: true,
-      only: ['propietarios'],
-      onSuccess: () => {
-        selectedPropietario.value = propietario;
-        showPropiedadesDialog.value = true;
-      }
-    });
-  } else {
-    selectedPropietario.value = propietario;
-    showPropiedadesDialog.value = true;
-  }
+  router.get(`/propietarios/${propietario.id}/propiedades`);
 };
 
 const deletePropietario = (propietario: Propietario) => {
@@ -112,11 +128,19 @@ const deletePropietario = (propietario: Propietario) => {
     rejectLabel: 'Cancelar',
     accept: () => {
       router.delete(`/propietarios/${propietario.id}`, {
-        onSuccess: () => {
-          showSuccess('Propietario eliminado exitosamente');
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: (page) => {
+          // Verificar si hay errores en la respuesta
+          if (page.props.errors && page.props.errors.error) {
+            showError(page.props.errors.error);
+          } else {
+            showSuccess('Propietario eliminado exitosamente');
+          }
         },
-        onError: () => {
-          showError('No se pudo eliminar el propietario');
+        onError: (errors) => {
+          const errorMessage = errors.error || 'No se pudo eliminar el propietario';
+          showError(errorMessage);
         }
       });
     }
@@ -136,6 +160,16 @@ const formatDate = (date: string) => {
     month: 'short',
     day: 'numeric'
   });
+};
+
+const closePropiedadesDialog = () => {
+  localShowPropiedadesDialog.value = false;
+  localSelectedPropietario.value = null;
+};
+
+const closeEditDialog = () => {
+  showEditDialog.value = false;
+  localSelectedPropietario.value = null;
 };
 </script>
 
@@ -270,15 +304,8 @@ const formatDate = (date: string) => {
     <!-- Dialogs -->
     <PropietarioFormDialog 
       v-model:open="showEditDialog"
-      :propietario="selectedPropietario"
-      :propiedades="propiedades"
-      @close="selectedPropietario = null"
-    />
-
-    <PropietarioPropiedadesDialog
-      v-model:open="showPropiedadesDialog"
-      :propietario="selectedPropietario"
-      @close="selectedPropietario = null"
-    />
+      :propietario="localSelectedPropietario"
+      @close="closeEditDialog"
+    />    
   </div>
 </template>

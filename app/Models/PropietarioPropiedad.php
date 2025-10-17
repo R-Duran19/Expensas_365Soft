@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('propietario_id')->constrained('propietarios')->cascadeOnDelete();
             $table->foreignId('propiedad_id')->constrained('propiedades')->cascadeOnDelete();
-            $table->decimal('porcentaje_participacion', 5, 2)->default(100.00); // Para copropiedad
             $table->date('fecha_inicio');
             $table->date('fecha_fin')->nullable(); // Si vende o transfiere
             $table->boolean('es_propietario_principal')->default(true);

@@ -10,13 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class PropietarioController extends Controller
 {
-    /**
-     * Mostrar lista de propietarios
-     */
     public function index(Request $request)
     {
-        $query = Propietario::with(['propiedades.tipoPropiedad'])
-            ->withCount('propiedades');
+        $query = Propietario::withCount('propiedades')
+            ->whereNull('deleted_at');
 
         // Búsqueda
         if ($request->has('search') && $request->search) {
@@ -37,22 +34,42 @@ class PropietarioController extends Controller
         $propietarios = $query->paginate($request->get('perPage', 15))
             ->withQueryString();
 
-        // Cargar propiedades disponibles para asignar
-        $propiedades = Propiedad::with('tipoPropiedad')
-            ->activas()
-            ->orderBy('codigo')
-            ->get(['id', 'codigo', 'ubicacion', 'tipo_propiedad_id']);
-
         return Inertia::render('Propietarios', [
             'propietarios' => $propietarios,
-            'propiedades' => $propiedades,
             'filters' => $request->only(['search', 'activo', 'orderBy', 'orderDirection'])
         ]);
     }
 
-    /**
-     * Almacenar nuevo propietario
-     */
+
+ public function getPropiedades(Propietario $propietario)
+{
+    // Cargar propiedades del propietario
+    $propietario->load([
+        'propiedades' => function ($query) {
+            $query->with(['tipoPropiedad'])
+                ->withPivot([
+                    'fecha_inicio',
+                    'fecha_fin',
+                    'es_propietario_principal',
+                    'observaciones'
+                ])
+                ->orderBy('propietario_propiedad.fecha_inicio', 'desc');
+        }
+    ]);
+
+    // Cargar propiedades disponibles para el dialog
+    $propiedadesDisponibles = Propiedad::with('tipoPropiedad')
+        ->activas()
+        ->orderBy('codigo')
+        ->get();
+
+    return inertia()->render('Propietarios/PropiedadesView', [
+        'propietario' => $propietario,
+        'propiedades' => $propiedadesDisponibles // Pasar propiedades disponibles
+    ]);
+}
+
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -65,13 +82,14 @@ class PropietarioController extends Controller
             'fecha_registro' => 'nullable|date',
             'activo' => 'boolean',
             'observaciones' => 'nullable|string',
-            'propiedad_id' => 'nullable|exists:propiedades,id',
-            'porcentaje_participacion' => 'nullable|numeric|min:0|max:100',
-            'fecha_inicio_propiedad' => 'nullable|date',
+            'propiedades' => 'nullable|array',
+            'propiedades.*.propiedad_id' => 'required|exists:propiedades,id',
+            'propiedades.*.fecha_inicio' => 'required|date',
+            'propiedades.*.es_propietario_principal' => 'boolean',
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             $propietario = Propietario::create([
                 'nombre_completo' => $validated['nombre_completo'],
@@ -85,20 +103,22 @@ class PropietarioController extends Controller
                 'observaciones' => $validated['observaciones'] ?? null,
             ]);
 
-            // Si se asignó una propiedad al crear
-            if ($request->propiedad_id) {
-                $propietario->propiedades()->attach($request->propiedad_id, [
-                    'porcentaje_participacion' => $request->porcentaje_participacion ?? 100,
-                    'fecha_inicio' => $request->fecha_inicio_propiedad ?? now(),
-                    'es_propietario_principal' => true,
-                ]);
+            // Asignar múltiples propiedades si existen
+            if (isset($validated['propiedades']) && count($validated['propiedades']) > 0) {
+                $propiedadesData = [];
+                foreach ($validated['propiedades'] as $propiedad) {
+                    $propiedadesData[$propiedad['propiedad_id']] = [
+                        'fecha_inicio' => $propiedad['fecha_inicio'],
+                        'es_propietario_principal' => $propiedad['es_propietario_principal']
+                    ];
+                }
+                $propietario->propiedades()->attach($propiedadesData);
             }
 
             DB::commit();
 
             return redirect()->route('propietarios.index')
                 ->with('success', 'Propietario creado exitosamente.');
-                
         } catch (\Exception $e) {
             DB::rollBack();
             return back()
@@ -107,21 +127,32 @@ class PropietarioController extends Controller
         }
     }
 
-    /**
-     * Mostrar detalles de un propietario
-     */
+    public function getPropiedadesDisponibles()
+    {
+        $propiedades = Propiedad::with('tipoPropiedad')
+            ->activas()
+            ->orderBy('codigo')
+            ->get();
+
+        return response()->json([
+            'propiedades' => $propiedades
+        ]);
+    }
+
+    // Y modifica el método show para que no cargue propiedades innecesariamente
     public function show(Propietario $propietario)
     {
+        // Solo cargar las propiedades del propietario, no todas las disponibles
         $propietario->load([
             'propiedades' => function ($query) {
-                $query->with(['tipoPropiedad', 'inquilinoActivo'])
+                $query->with(['tipoPropiedad'])
                     ->withPivot([
-                        'porcentaje_participacion',
                         'fecha_inicio',
                         'fecha_fin',
                         'es_propietario_principal',
                         'observaciones'
-                    ]);
+                    ])
+                    ->whereNull('propietario_propiedad.fecha_fin');
             }
         ]);
 
@@ -130,9 +161,6 @@ class PropietarioController extends Controller
         ]);
     }
 
-    /**
-     * Actualizar propietario
-     */
     public function update(Request $request, Propietario $propietario)
     {
         $validated = $request->validate([
@@ -145,69 +173,81 @@ class PropietarioController extends Controller
             'fecha_registro' => 'nullable|date',
             'activo' => 'boolean',
             'observaciones' => 'nullable|string',
+            'propiedades' => 'nullable|array',
+            'propiedades.*.propiedad_id' => 'required|exists:propiedades,id',
+            'propiedades.*.fecha_inicio' => 'required|date',
+            'propiedades.*.es_propietario_principal' => 'boolean',
         ]);
+
+        DB::beginTransaction();
 
         try {
             $propietario->update($validated);
 
+            // Sincronizar propiedades si se enviaron
+            if (isset($validated['propiedades'])) {
+                $propiedadesData = [];
+                foreach ($validated['propiedades'] as $propiedad) {
+                    $propiedadesData[$propiedad['propiedad_id']] = [
+                        'fecha_inicio' => $propiedad['fecha_inicio'],
+                        'es_propietario_principal' => $propiedad['es_propietario_principal']
+                    ];
+                }
+                $propietario->propiedades()->sync($propiedadesData);
+            } else {
+                // Si no se enviaron propiedades, mantener las existentes
+                // O si quieres eliminar todas: $propietario->propiedades()->detach();
+            }
+
+            DB::commit();
+
             return redirect()->route('propietarios.index')
                 ->with('success', 'Propietario actualizado exitosamente.');
-                
         } catch (\Exception $e) {
+            DB::rollBack();
             return back()
                 ->withErrors(['error' => 'Error al actualizar el propietario: ' . $e->getMessage()])
                 ->withInput();
         }
     }
 
-    /**
-     * Eliminar propietario (soft delete)
-     */
-/**
- * Eliminar propietario (soft delete)
- */
-public function destroy(Propietario $propietario)
-{
-    try {
-        DB::beginTransaction();
+    public function destroy(Propietario $propietario)
+    {
+        try {
+            DB::beginTransaction();
 
-        // Verificar si tiene propiedades asignadas activas (sin fecha_fin)
-        $propiedadesActivas = $propietario->propiedadesActivas()->count();
-        
-        if ($propiedadesActivas > 0) {
-            return back()->withErrors([
-                'error' => 'No se puede eliminar un propietario con propiedades asignadas activas. Primero debe desasignar todas las propiedades.'
-            ]);
+            // Verificar si tiene propiedades asignadas activas (sin fecha_fin)
+            $propiedadesActivas = $propietario->propiedades()
+                ->whereNull('propietario_propiedad.fecha_fin')
+                ->count();
+
+            if ($propiedadesActivas > 0) {
+                DB::rollBack();
+                return redirect()->route('propietarios.index')
+                    ->withErrors([
+                        'error' => 'No se puede eliminar un propietario con propiedades asignadas activas. Primero debe desasignar todas las propiedades.'
+                    ]);
+            }
+
+            $propietario->forceDelete();
+
+            DB::commit();
+
+            return redirect()->route('propietarios.index')
+                ->with('success', 'Propietario eliminado permanentemente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('propietarios.index')
+                ->withErrors([
+                    'error' => 'Error al eliminar el propietario: ' . $e->getMessage()
+                ]);
         }
-
-        // Detach todas las propiedades antes de eliminar
-        // Esto evita problemas con el cascadeOnDelete
-        $propietario->propiedades()->detach();
-
-        // Ahora sí eliminar el propietario (soft delete)
-        $propietario->delete();
-
-        DB::commit();
-
-        return redirect()->route('propietarios.index')
-            ->with('success', 'Propietario eliminado exitosamente.');
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withErrors([
-            'error' => 'Error al eliminar el propietario: ' . $e->getMessage()
-        ]);
     }
-}
 
-    /**
-     * Asignar propiedad a propietario
-     */
     public function asignarPropiedad(Request $request, Propietario $propietario)
     {
         $validated = $request->validate([
             'propiedad_id' => 'required|exists:propiedades,id',
-            'porcentaje_participacion' => 'nullable|numeric|min:0|max:100',
             'fecha_inicio' => 'nullable|date',
             'es_propietario_principal' => 'boolean',
             'observaciones' => 'nullable|string',
@@ -227,14 +267,12 @@ public function destroy(Propietario $propietario)
 
         try {
             $propietario->propiedades()->attach($validated['propiedad_id'], [
-                'porcentaje_participacion' => $validated['porcentaje_participacion'] ?? 100,
                 'fecha_inicio' => $validated['fecha_inicio'] ?? now(),
                 'es_propietario_principal' => $validated['es_propietario_principal'] ?? true,
                 'observaciones' => $validated['observaciones'] ?? null,
             ]);
 
             return back()->with('success', 'Propiedad asignada exitosamente.');
-            
         } catch (\Exception $e) {
             return back()->withErrors([
                 'error' => 'Error al asignar la propiedad: ' . $e->getMessage()
@@ -242,37 +280,30 @@ public function destroy(Propietario $propietario)
         }
     }
 
-    /**
-     * Desasignar propiedad (marcar fecha_fin)
-     */
-/**
- * Desasignar propiedad (marcar fecha_fin)
- */
-public function desasignarPropiedad(Propietario $propietario, Propiedad $propiedad)
-{
-    try {
-        // Verificar que la propiedad esté asignada sin fecha_fin
-        $asignacion = $propietario->propiedades()
-            ->wherePivot('propiedad_id', $propiedad->id)
-            ->whereNull('propietario_propiedad.fecha_fin')
-            ->first();
+    public function desasignarPropiedad(Propietario $propietario, Propiedad $propiedad)
+    {
+        try {
+            // Verificar que la propiedad esté asignada sin fecha_fin
+            $asignacion = $propietario->propiedades()
+                ->wherePivot('propiedad_id', $propiedad->id)
+                ->whereNull('propietario_propiedad.fecha_fin')
+                ->first();
 
-        if (!$asignacion) {
+            if (!$asignacion) {
+                return back()->withErrors([
+                    'error' => 'Esta propiedad no está asignada activamente a este propietario.'
+                ]);
+            }
+
+            $propietario->propiedades()->updateExistingPivot($propiedad->id, [
+                'fecha_fin' => now(),
+            ]);
+
+            return back()->with('success', 'Propiedad desasignada exitosamente.');
+        } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Esta propiedad no está asignada activamente a este propietario.'
+                'error' => 'Error al desasignar la propiedad: ' . $e->getMessage()
             ]);
         }
-
-        $propietario->propiedades()->updateExistingPivot($propiedad->id, [
-            'fecha_fin' => now(),
-        ]);
-
-        return back()->with('success', 'Propiedad desasignada exitosamente.');
-        
-    } catch (\Exception $e) {
-        return back()->withErrors([
-            'error' => 'Error al desasignar la propiedad: ' . $e->getMessage()
-        ]);
     }
-}
 }

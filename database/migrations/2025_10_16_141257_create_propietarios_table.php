@@ -20,7 +20,6 @@ return new class extends Migration
             $table->boolean('activo')->default(true);
             $table->text('observaciones')->nullable();
             $table->timestamps();
-            $table->softDeletes();
 
             // Índices para búsquedas
             $table->index('ci');

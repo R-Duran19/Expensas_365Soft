@@ -25,7 +25,6 @@ interface Propiedad {
   metros_cuadrados: number;
   tipo_propiedad: TipoPropiedad;
   pivot?: {
-    porcentaje_participacion: number;
     fecha_inicio: string;
     fecha_fin?: string;
     es_propietario_principal: boolean;
@@ -142,9 +141,6 @@ const formatDate = (date: string) => {
                       <Ruler class="h-3 w-3 text-muted-foreground" />
                       {{ propiedad.metros_cuadrados }}
                     </div>
-                  </TableCell>
-                  <TableCell class="text-center">
-                    {{ propiedad.pivot?.porcentaje_participacion || 100 }}%
                   </TableCell>
                   <TableCell class="text-center">
                     <Badge 
