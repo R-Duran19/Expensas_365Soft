@@ -12,8 +12,7 @@ class PropietarioController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Propietario::withCount('propiedades')
-            ->whereNull('deleted_at');
+        $query = Propietario::withCount('propiedades');
 
         // Búsqueda
         if ($request->has('search') && $request->search) {

@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre', 50)->unique(); // Departamento, Oficina, Local, Parqueo, Baulera
             $table->string('descripcion')->nullable();
+            $table->boolean('requiere_medidor')->default(false);
             $table->boolean('activo')->default(true);
             $table->timestamps();
         });

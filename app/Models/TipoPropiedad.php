@@ -12,11 +12,13 @@ class TipoPropiedad extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
+        'requiere_medidor', // NUEVO
         'activo',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'requiere_medidor' => 'boolean', // NUEVO
     ];
 
     /**
@@ -52,5 +54,29 @@ class TipoPropiedad extends Model
     public function scopeActivos($query)
     {
         return $query->where('activo', true);
+    }
+
+    /**
+     * Scope para tipos que requieren medidor
+     */
+    public function scopeRequierenMedidor($query)
+    {
+        return $query->where('requiere_medidor', true);
+    }
+
+    /**
+     * Verificar si es tipo domiciliario
+     */
+    public function esDomiciliario(): bool
+    {
+        return in_array(strtolower($this->nombre), ['departamento', 'casa']);
+    }
+
+    /**
+     * Verificar si es tipo comercial
+     */
+    public function esComercial(): bool
+    {
+        return in_array(strtolower($this->nombre), ['local comercial', 'oficina']);
     }
 }

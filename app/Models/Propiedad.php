@@ -118,7 +118,7 @@ class Propiedad extends Model
     {
         return $query->where(function ($q) use ($termino) {
             $q->where('codigo', 'like', "%{$termino}%")
-              ->orWhere('ubicacion', 'like', "%{$termino}%");
+                ->orWhere('ubicacion', 'like', "%{$termino}%");
         });
     }
 
@@ -128,5 +128,44 @@ class Propiedad extends Model
     public function scopePorTipo($query, $tipoId)
     {
         return $query->where('tipo_propiedad_id', $tipoId);
+    }
+    
+    public function medidor(): HasOne
+    {
+        return $this->hasOne(Medidor::class);
+    }
+
+    /**
+     * Verificar si la propiedad requiere medidor según su tipo
+     */
+    public function requiereMedidor(): bool
+    {
+        return $this->tipoPropiedad && $this->tipoPropiedad->requiere_medidor;
+    }
+
+    /**
+     * Verificar si tiene medidor asignado
+     */
+    public function tieneMedidor(): bool
+    {
+        return $this->medidor()->exists();
+    }
+
+    /**
+     * Scope para propiedades que requieren medidor
+     */
+    public function scopeRequierenMedidor($query)
+    {
+        return $query->whereHas('tipoPropiedad', function ($q) {
+            $q->where('requiere_medidor', true);
+        });
+    }
+
+    /**
+     * Scope para propiedades sin medidor asignado
+     */
+    public function scopeSinMedidor($query)
+    {
+        return $query->doesntHave('medidor');
     }
 }
