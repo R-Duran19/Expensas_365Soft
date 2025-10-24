@@ -1,9 +1,15 @@
-<template>
-  <div>
-    <slot />
-  </div>
-</template>
-
 <script setup lang="ts">
-// Minimal wrapper for select-related subcomponents.
+import type { SelectRootEmits, SelectRootProps } from "reka-ui"
+import { SelectRoot, useForwardPropsEmits } from "reka-ui"
+
+const props = defineProps<SelectRootProps>()
+const emits = defineEmits<SelectRootEmits>()
+
+const forwarded = useForwardPropsEmits(props, emits)
 </script>
+
+<template>
+  <SelectRoot v-bind="forwarded">
+    <slot />
+  </SelectRoot>
+</template>

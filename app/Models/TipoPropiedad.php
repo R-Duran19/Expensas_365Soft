@@ -72,11 +72,9 @@ class TipoPropiedad extends Model
         return in_array(strtolower($this->nombre), ['departamento', 'casa']);
     }
 
-    /**
-     * Verificar si es tipo comercial
-     */
+
     public function esComercial(): bool
     {
-        return in_array(strtolower($this->nombre), ['local comercial', 'oficina']);
+        return in_array(strtolower($this->nombre), ['local', 'oficina']);
     }
 }

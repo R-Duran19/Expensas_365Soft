@@ -23,4 +23,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
 
     // API para obtener última lectura
     Route::get('api/medidores/{medidor}/ultima-lectura', [LecturaController::class, 'getUltimaLectura']);
+    Route::get('api/medidores/activos', [MedidorController::class, 'getActivos'])
+    ->name('api.medidores.activos');
 });

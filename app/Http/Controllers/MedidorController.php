@@ -6,6 +6,7 @@ use App\Models\Medidor;
 use App\Models\Propiedad;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\JsonResponse;
 
 class MedidorController extends Controller
 {
@@ -107,5 +108,31 @@ class MedidorController extends Controller
             ->get();
 
         return response()->json($propiedades);
+    }
+    public function getActivos(): JsonResponse
+    {
+        $medidores = Medidor::with(['propiedad.tipoPropiedad']) // Relación en singular
+            ->activos()
+            ->orderBy('numero_medidor')
+            ->get()
+            ->map(function ($medidor) {
+                return [
+                    'id' => $medidor->id,
+                    'numero_medidor' => $medidor->numero_medidor,
+                    'ubicacion' => $medidor->ubicacion,
+                    'tipo' => $medidor->tipo, // 'comercial' o 'domiciliario'
+                    'lectura_anterior' => (float) ($medidor->ultimaLectura()?->lectura_actual ?? 0),
+                    'fecha_ultima_lectura' => $medidor->ultimaLectura()?->fecha_lectura,
+                    'propiedad' => [
+                        'id' => $medidor->propiedad->id,
+                        'codigo' => $medidor->propiedad->codigo,
+                        // 'nombre' => $medidor->propiedad->nombre, // ← ESTE CAMPO NO EXISTE
+                        'ubicacion' => $medidor->propiedad->ubicacion ?? null,
+                        'tipo_propiedad' => $medidor->propiedad->tipoPropiedad->nombre ?? null,
+                    ],
+                ];
+            });
+
+        return response()->json($medidores);
     }
 }
