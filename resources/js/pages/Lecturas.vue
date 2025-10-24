@@ -72,8 +72,9 @@ interface Filtros {
 
 interface Props {
   lecturas: PaginatedLecturas;
-  periodos: string[]; // Array de períodos: ["2025-07", "2025-06", ...]
+  periodos: string[];
   filtros: Filtros;
+  tieneFiltros?: boolean; // NUEVO
 }
 
 defineProps<Props>();
@@ -110,20 +111,18 @@ const closeLecturaDialog = () => {
     <Head title="Gestión de Lecturas" />
     
     <div class="space-y-6">
-      <!-- Header con filtros y acciones -->
       <LecturasHeader 
         :periodos="periodos"
         :filtros="filtros"
         @create-lectura="openLecturaDialog()"
       />
 
-      <!-- Tabla de lecturas -->
       <LecturasTable 
         :lecturas="lecturas"
+        :tiene-filtros="tieneFiltros"
         @edit-lectura="openLecturaDialog"
       />
 
-      <!-- Dialog para crear/editar lectura individual -->
       <LecturaFormDialog 
         v-model:open="showLecturaDialog"
         :lectura="selectedLectura"

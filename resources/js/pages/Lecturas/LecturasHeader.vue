@@ -138,6 +138,15 @@ const formatPeriodo = (periodo: string): string => {
     </CardHeader>
 
     <CardContent>
+       <!-- Mensaje de ayuda (solo si NO hay filtros) -->
+      <div 
+        v-if="!hayFiltrosActivos" 
+        class="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md"
+      >
+        <p class="text-sm text-blue-800 dark:text-blue-200">
+          💡 <strong>Tip:</strong> Selecciona un período para ver las lecturas correspondientes
+        </p>
+      </div>
       <!-- Filtros -->
       <div class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -148,7 +157,7 @@ const formatPeriodo = (periodo: string): string => {
               v-model="filtrosLocal.periodo"
               class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="">Todos los períodos</option>
+              <option value="">Seleccione Un Periodo</option>
               <option v-for="periodo in periodos" :key="periodo" :value="periodo">
                 {{ formatPeriodo(periodo) }}
               </option>

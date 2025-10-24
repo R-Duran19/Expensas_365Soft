@@ -15,112 +15,133 @@ class LecturaController extends Controller
     /**
      * Listar lecturas con filtros
      */
-public function index(Request $request)
-{
-    $query = Lectura::with([
-        'medidor.propiedad.tipoPropiedad', // Cargar tipoPropiedad
-        'usuario'
-    ]);
+    public function index(Request $request)
+    {
+        $query = Lectura::with([
+            'medidor.propiedad.tipoPropiedad',
+            'usuario'
+        ]);
 
-    // Filtro por mes/período
-    if ($request->has('periodo')) {
-        $query->where('mes_periodo', $request->periodo);
+        // Variable para verificar si hay filtros aplicados
+        $tieneFiltros = false;
+
+        // Filtro por mes/período
+        if ($request->filled('periodo')) {
+            $query->where('mes_periodo', $request->periodo);
+            $tieneFiltros = true;
+        }
+
+        // Filtro por medidor
+        if ($request->filled('medidor_id')) {
+            $query->where('medidor_id', $request->medidor_id);
+            $tieneFiltros = true;
+        }
+
+        // Filtro por rango de fechas
+        if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {
+            $query->whereBetween('fecha_lectura', [
+                $request->fecha_desde,
+                $request->fecha_hasta
+            ]);
+            $tieneFiltros = true;
+        }
+
+        // Si NO hay filtros, devolver colección vacía
+        if (!$tieneFiltros) {
+            $lecturas = new \Illuminate\Pagination\LengthAwarePaginator(
+                [],
+                0,
+                10,
+                1,
+                ['path' => request()->url()]
+            );
+        } else {
+            // Si HAY filtros, ejecutar query
+            $lecturas = $query
+                ->orderBy('fecha_lectura', 'desc')
+                ->paginate(10)
+                ->appends($request->only(['periodo', 'medidor_id', 'fecha_desde', 'fecha_hasta']))
+                ->through(function ($lectura) {
+                    $tipoPropiedadId = $lectura->medidor->propiedad->tipo_propiedad_id;
+                    $tipo = in_array($tipoPropiedadId, [3, 4]) ? 'comercial' : 'domiciliario';
+
+                    return [
+                        'id' => $lectura->id,
+                        'medidor_id' => $lectura->medidor_id,
+                        'lectura_actual' => $lectura->lectura_actual,
+                        'lectura_anterior' => $lectura->lectura_anterior,
+                        'consumo' => $lectura->consumo,
+                        'fecha_lectura' => $lectura->fecha_lectura,
+                        'mes_periodo' => $lectura->mes_periodo,
+                        'observaciones' => $lectura->observaciones,
+                        'created_at' => $lectura->created_at,
+                        'medidor' => [
+                            'id' => $lectura->medidor->id,
+                            'numero_medidor' => $lectura->medidor->numero_medidor,
+                            'ubicacion' => $lectura->medidor->ubicacion,
+                            'tipo' => $tipo,
+                            'propiedad' => [
+                                'id' => $lectura->medidor->propiedad->id,
+                                'codigo' => $lectura->medidor->propiedad->codigo,
+                                'nombre' => $lectura->medidor->propiedad->nombre,
+                                'ubicacion' => $lectura->medidor->propiedad->ubicacion,
+                                'tipo_propiedad' => $lectura->medidor->propiedad->tipoPropiedad
+                            ]
+                        ],
+                        'usuario' => [
+                            'id' => $lectura->usuario->id,
+                            'name' => $lectura->usuario->name
+                        ]
+                    ];
+                });
+        }
+
+        // Obtener períodos disponibles
+        $periodos = Lectura::select('mes_periodo')
+            ->distinct()
+            ->orderBy('mes_periodo', 'desc')
+            ->pluck('mes_periodo');
+
+        return Inertia::render('Lecturas', [
+            'lecturas' => $lecturas,
+            'periodos' => $periodos,
+            'filtros' => $request->only(['periodo', 'medidor_id', 'fecha_desde', 'fecha_hasta']),
+            'tieneFiltros' => $tieneFiltros // Nuevo
+        ]);
     }
-
-    // Filtro por medidor
-    if ($request->has('medidor_id')) {
-        $query->where('medidor_id', $request->medidor_id);
-    }
-
-    // Filtro por rango de fechas
-    if ($request->has('fecha_desde') && $request->has('fecha_hasta')) {
-        $query->entreFechas($request->fecha_desde, $request->fecha_hasta);
-    }
-
-    $lecturas = $query
-        ->orderBy('fecha_lectura', 'desc')
-        ->paginate(20)
-        ->through(function ($lectura) {
-            // Calcular tipo basado en tipo_propiedad_id
-            $tipoPropiedadId = $lectura->medidor->propiedad->tipo_propiedad_id;
-            $tipo = in_array($tipoPropiedadId, [3, 4]) ? 'comercial' : 'domiciliario';
-            
-            return [
-                'id' => $lectura->id,
-                'medidor_id' => $lectura->medidor_id,
-                'lectura_actual' => $lectura->lectura_actual,
-                'lectura_anterior' => $lectura->lectura_anterior,
-                'consumo' => $lectura->consumo,
-                'fecha_lectura' => $lectura->fecha_lectura,
-                'mes_periodo' => $lectura->mes_periodo,
-                'observaciones' => $lectura->observaciones,
-                'created_at' => $lectura->created_at,
-                'medidor' => [
-                    'id' => $lectura->medidor->id,
-                    'numero_medidor' => $lectura->medidor->numero_medidor,
-                    'ubicacion' => $lectura->medidor->ubicacion,
-                    'propiedad_id' => $lectura->medidor->propiedad_id,
-                    'tipo' => $tipo, // Tipo calculado
-                    'propiedad' => [
-                        'id' => $lectura->medidor->propiedad->id,
-                        'codigo' => $lectura->medidor->propiedad->codigo,
-                        'ubicacion' => $lectura->medidor->propiedad->ubicacion,
-                        'tipo_propiedad_id' => $lectura->medidor->propiedad->tipo_propiedad_id,
-                        'tipo_propiedad' => $lectura->medidor->propiedad->tipoPropiedad
-                    ]
-                ],
-                'usuario' => [
-                    'id' => $lectura->usuario->id,
-                    'name' => $lectura->usuario->name
-                ]
-            ];
-        });
-
-    // Obtener períodos disponibles para filtro
-    $periodos = Lectura::select('mes_periodo')
-        ->distinct()
-        ->orderBy('mes_periodo', 'desc')
-        ->pluck('mes_periodo');
-
-    return Inertia::render('Lecturas', [
-        'lecturas' => $lecturas,
-        'periodos' => $periodos,
-        'filtros' => $request->only(['periodo', 'medidor_id', 'fecha_desde', 'fecha_hasta'])
-    ]);
-}
 
 
     public function create()
-{
-    $medidores = Medidor::with(['propiedad', 'propiedad.tipoPropiedad'])
-        ->activos()
-        ->get()
-        ->sortBy(function ($medidor) {
-            return $medidor->propiedad ? $medidor->propiedad->codigo : 'ZZZ';
-        })
-        ->values() // reindexar el array
-        ->map(function ($medidor) {
-            $ultimaLectura = $medidor->ultimaLectura();
-            $propiedad = $medidor->propiedad;
-            
-            return [
-                'id' => $medidor->id,
-                'numero_medidor' => $medidor->numero_medidor,
-                'ubicacion' => $propiedad ? $propiedad->ubicacion : $medidor->ubicacion,
-                'propiedad' => $propiedad ? $propiedad->codigo : 'Sin propiedad',
-                'ultima_lectura' => $ultimaLectura?->lectura_actual,
-                'fecha_ultima_lectura' => $ultimaLectura?->fecha_lectura,
-                'tipo' => $medidor->tipo
-            ];
-        });
+    {
+        $medidores = Medidor::with(['propiedad', 'propiedad.tipoPropiedad'])
+            ->activos()
+            ->get()
+            ->sortBy(function ($medidor) {
+                return $medidor->propiedad ? $medidor->propiedad->codigo : 'ZZZ';
+            })
+            ->values() // reindexar el array
+            ->map(function ($medidor) {
+                $ultimaLectura = $medidor->ultimaLectura();
+                $propiedad = $medidor->propiedad;
 
-    $mesActual = Carbon::now()->format('Y-m');
+                return [
+                    'id' => $medidor->id,
+                    'numero_medidor' => $medidor->numero_medidor,
+                    'ubicacion' => $propiedad ? $propiedad->ubicacion : $medidor->ubicacion,
+                    'propiedad' => $propiedad ? $propiedad->codigo : 'Sin propiedad',
+                    'ultima_lectura' => $ultimaLectura?->lectura_actual,
+                    'fecha_ultima_lectura' => $ultimaLectura?->fecha_lectura,
+                    'tipo' => $medidor->tipo
+                ];
+            });
 
-    return Inertia::render('Lecturas/Create', [
-        'medidores' => $medidores,
-        'mesActual' => $mesActual
-    ]);
-}
+        $mesActual = Carbon::now()->format('Y-m');
+
+        return Inertia::render('Lecturas/Create', [
+            'medidores' => $medidores,
+            'mesActual' => $mesActual
+        ]);
+    }
 
     /**
      * Guardar nueva lectura

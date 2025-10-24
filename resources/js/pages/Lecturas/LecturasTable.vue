@@ -80,6 +80,7 @@ interface PaginatedLecturas {
 
 interface Props {
   lecturas: PaginatedLecturas;
+  tieneFiltros?: boolean; // NUEVO
 }
 
 const props = defineProps<Props>();
@@ -165,6 +166,16 @@ const lecturasFiltradas = computed(() => {
            tipo.includes(search);
   });
 });
+const getLinkLabel = (label: string): string => {
+  if (label.includes('Previous') || label.includes('previous') || label.includes('pagination.previous')) {
+    return '‹';
+  }
+  if (label.includes('Next') || label.includes('next') || label.includes('pagination.next')) {
+    return '›';
+  }
+  // Eliminar cualquier etiqueta HTML que pueda venir
+  return label.replace(/&laquo;|&raquo;|«|»/g, '').trim();
+};
 </script>
 
 <template>
@@ -275,54 +286,67 @@ const lecturasFiltradas = computed(() => {
             </TableCell>
           </TableRow>
 
-          <!-- Estado vacío -->
-          <!-- Estado vacío -->
-<TableRow v-if="lecturasFiltradas.length === 0">
-  <TableCell colspan="9" class="h-48 text-center">
-    <div class="flex flex-col items-center justify-center text-muted-foreground">
-      <FileText class="h-12 w-12 mb-4" />
-      <p class="text-lg font-medium">
-        {{ searchTerm ? 'No se encontraron resultados' : 'No hay lecturas registradas' }}
-      </p>
-      <p class="text-sm mt-1">
-        {{ searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza registrando la primera lectura' }}
-      </p>
-    </div>
-  </TableCell>
-</TableRow>
+
+<!-- Estado vacío MEJORADO -->
+          <TableRow v-if="lecturasFiltradas.length === 0">
+            <TableCell colspan="9" class="h-48 text-center">
+              <div class="flex flex-col items-center justify-center text-muted-foreground">
+                <FileText class="h-12 w-12 mb-4" />
+                
+                <!-- Si no hay filtros aplicados -->
+                <template v-if="!tieneFiltros">
+                  <p class="text-lg font-medium">Selecciona un período para ver las lecturas</p>
+                  <p class="text-sm mt-1">Usa los filtros de arriba para buscar lecturas específicas</p>
+                </template>
+                
+                <!-- Si hay filtros pero no hay resultados -->
+                <template v-else-if="searchTerm">
+                  <p class="text-lg font-medium">No se encontraron resultados</p>
+                  <p class="text-sm mt-1">Intenta con otros términos de búsqueda</p>
+                </template>
+                
+                <!-- Si hay filtros pero la lista está vacía -->
+                <template v-else>
+                  <p class="text-lg font-medium">No hay lecturas para los filtros aplicados</p>
+                  <p class="text-sm mt-1">Intenta ajustar los filtros o registra nuevas lecturas</p>
+                </template>
+              </div>
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>
 
-    <!-- Paginación -->
-    <div v-if="lecturas.total > 0" class="border-t px-4 py-4">
-      <div class="flex items-center justify-between">
-        <div class="text-sm text-muted-foreground">
-          Mostrando
-          <span class="font-medium text-foreground">{{ (lecturas.current_page - 1) * lecturas.per_page + 1 }}</span>
-          a
-          <span class="font-medium text-foreground">{{ Math.min(lecturas.current_page * lecturas.per_page, lecturas.total) }}</span>
-          de
-          <span class="font-medium text-foreground">{{ lecturas.total }}</span>
-          resultados
-        </div>
-
-        <div class="flex gap-1">
-          <Button
-            v-for="link in lecturas.links"
-            :key="link.label"
-            variant="outline"
-            size="sm"
-            :disabled="!link.url"
-            :class="[
-              link.active && 'bg-primary text-primary-foreground hover:bg-primary/90'
-            ]"
-            @click="link.url && router.visit(link.url)"
-            v-html="link.label"
-          />
-        </div>
-      </div>
+<!-- Paginación -->
+<div v-if="lecturas.total > 0" class="border-t px-4 py-4">
+  <div class="flex items-center justify-between">
+    <div class="text-sm text-muted-foreground">
+      Mostrando
+      <span class="font-medium text-foreground">{{ (lecturas.current_page - 1) * lecturas.per_page + 1 }}</span>
+      a
+      <span class="font-medium text-foreground">{{ Math.min(lecturas.current_page * lecturas.per_page, lecturas.total) }}</span>
+      de
+      <span class="font-medium text-foreground">{{ lecturas.total }}</span>
+      resultados
     </div>
+
+    <div class="flex gap-1">
+<Button
+  v-for="(link, index) in lecturas.links"
+  :key="index"
+  variant="outline"
+  size="sm"
+  :disabled="!link.url"
+  :class="[
+    link.active && 'bg-primary text-primary-foreground hover:bg-primary/90'
+  ]"
+  @click="link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })"
+>
+  {{ getLinkLabel(link.label) }}
+</Button>
+    </div>
+  </div>
+</div>
 
     <!-- Dialog de confirmación de eliminación -->
     <AlertDialog :open="showDeleteDialog" @update:open="showDeleteDialog = $event">

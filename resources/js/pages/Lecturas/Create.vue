@@ -379,7 +379,7 @@ const formatPeriodo = (periodo: string): string => {
                                         <TableHead class="text-right w-32">Lectura Anterior</TableHead>
                                         <TableHead class="w-40">Lectura Actual *</TableHead>
                                         <TableHead class="text-right w-32">Consumo</TableHead>
-                                        <TableHead class="w-48">Observaciones</TableHead>
+                                        <!-- <TableHead class="w-48">Observaciones</TableHead> -->
                                         <TableHead class="w-24"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -426,10 +426,10 @@ const formatPeriodo = (periodo: string): string => {
                                             </span>
                                             <span v-else class="text-muted-foreground">-</span>
                                         </TableCell>
-                                        <TableCell>
+                                        <!-- <TableCell>
                                             <Input v-model="lecturas.get(medidor.id)!.observaciones"
                                                 placeholder="Opcional" maxlength="100" />
-                                        </TableCell>
+                                        </TableCell> -->
                                         <TableCell>
                                             <Button v-if="lecturas.get(medidor.id)?.lectura_actual !== null"
                                                 variant="ghost" size="icon" @click="limpiarLectura(medidor.id)">
