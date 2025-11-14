@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             LocalesSeeder::class,
             OficinasSeeder::class,
             DepartamentosSeeder::class,
+            ExpenseSystemSeeder::class,
         ]);
     }
 }
