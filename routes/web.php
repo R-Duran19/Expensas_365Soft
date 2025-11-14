@@ -32,3 +32,4 @@ require __DIR__.'/facturas.php';
 require __DIR__.'/lecturas.php';
 require __DIR__.'/grupos-medidores.php';
 require __DIR__.'/expensas.php';
+require __DIR__.'/expense-periods.php';
