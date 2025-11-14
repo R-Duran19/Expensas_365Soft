@@ -1,24 +1,24 @@
 <template>
   <Dialog :open="open" @update:open="(val) => emit('update:open', val)">
-    <DialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle>
+    <DialogContent class="sm:max-w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4 dark:bg-gray-900">
+      <DialogHeader class="pb-4">
+        <DialogTitle class="text-lg sm:text-xl">
           {{ isEditing ? 'Editar Propietario' : 'Nuevo Propietario' }}
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription class="text-sm">
           {{ isEditing ? 'Actualiza la información del propietario' : 'Completa los datos para registrar un nuevo propietario' }}
         </DialogDescription>
       </DialogHeader>
 
-      <form @submit.prevent="submit" class="space-y-6">
+      <form @submit.prevent="submit" class="space-y-4 sm:space-y-6">
         <!-- Información Básica del Propietario -->
-        <div class="space-y-4">
-          <h3 class="text-lg font-semibold">Información Personal</h3>
-          
-          <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-3 sm:space-y-4">
+          <h3 class="text-base sm:text-lg font-semibold">Información Personal</h3>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <!-- Nombre Completo -->
-            <div class="col-span-2">
-              <Label for="nombre_completo">
+            <div class="col-span-1 sm:col-span-2">
+              <Label for="nombre_completo" class="text-sm font-medium">
                 Nombre Completo <span class="text-destructive">*</span>
               </Label>
               <Input
@@ -27,6 +27,7 @@
                 :class="{ 'border-destructive': form.errors.nombre_completo }"
                 placeholder="Ej: Juan Pérez García"
                 required
+                class="h-10 sm:h-11"
               />
               <p v-if="form.errors.nombre_completo" class="text-sm text-destructive mt-1">
                 {{ form.errors.nombre_completo }}
@@ -35,12 +36,13 @@
 
             <!-- CI -->
             <div>
-              <Label for="ci">Carnet de Identidad</Label>
+              <Label for="ci" class="text-sm font-medium">Carnet de Identidad</Label>
               <Input
                 id="ci"
                 v-model="form.ci"
                 placeholder="Ej: 1234567 LP"
                 :class="{ 'border-destructive': form.errors.ci }"
+                class="h-10 sm:h-11"
               />
               <p v-if="form.errors.ci" class="text-sm text-destructive mt-1">
                 {{ form.errors.ci }}
@@ -49,33 +51,36 @@
 
             <!-- NIT -->
             <div>
-              <Label for="nit">NIT</Label>
+              <Label for="nit" class="text-sm font-medium">NIT</Label>
               <Input
                 id="nit"
                 v-model="form.nit"
                 placeholder="Ej: 1234567012"
+                class="h-10 sm:h-11"
               />
             </div>
 
             <!-- Teléfono -->
             <div>
-              <Label for="telefono">Teléfono</Label>
+              <Label for="telefono" class="text-sm font-medium">Teléfono</Label>
               <Input
                 id="telefono"
                 v-model="form.telefono"
                 placeholder="Ej: 77123456"
+                class="h-10 sm:h-11"
               />
             </div>
 
             <!-- Email -->
             <div>
-              <Label for="email">Email</Label>
+              <Label for="email" class="text-sm font-medium">Email</Label>
               <Input
                 id="email"
                 v-model="form.email"
                 type="email"
                 placeholder="ejemplo@correo.com"
                 :class="{ 'border-destructive': form.errors.email }"
+                class="h-10 sm:h-11"
               />
               <p v-if="form.errors.email" class="text-sm text-destructive mt-1">
                 {{ form.errors.email }}
@@ -84,60 +89,65 @@
 
             <!-- Fecha Registro -->
             <div>
-              <Label for="fecha_registro">Fecha de Registro</Label>
+              <Label for="fecha_registro" class="text-sm font-medium">Fecha de Registro</Label>
               <Input
                 id="fecha_registro"
                 v-model="form.fecha_registro"
                 type="date"
+                class="h-10 sm:h-11"
               />
             </div>
 
             <!-- Dirección Externa -->
-            <div class="col-span-2">
-              <Label for="direccion_externa">Dirección Externa</Label>
+            <div class="col-span-1 sm:col-span-2">
+              <Label for="direccion_externa" class="text-sm font-medium">Dirección Externa</Label>
               <Input
                 id="direccion_externa"
                 v-model="form.direccion_externa"
                 placeholder="Calle, zona, ciudad"
+                class="h-10 sm:h-11"
               />
             </div>
           </div>
         </div>
 
         <!-- Gestión de Propiedades -->
-        <div class="border-t pt-6">
-          <div class="flex items-center justify-between mb-4">
-            <Label class="font-semibold">Propiedades Asignadas</Label>
-            <Button 
-              type="button" 
-              variant="outline" 
+        <div class="border-t pt-4 sm:pt-6 space-y-3 sm:space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <Label class="font-semibold text-base">Propiedades Asignadas</Label>
+            <Button
+              type="button"
+              variant="outline"
               size="sm"
               @click="abrirSelectorPropiedades"
+              class="w-full sm:w-auto h-10"
             >
-              <Building2 class="h-4 w-4 mr-2" />
-              {{ propiedadesSeleccionadas.length > 0 ? 'Gestionar Propiedades' : 'Asignar Propiedades' }}
+              <Building2 class="h-4 w-4 mr-2 flex-shrink-0" />
+              <span class="truncate">
+                {{ propiedadesSeleccionadas.length > 0 ? 'Gestionar Propiedades' : 'Asignar Propiedades' }}
+              </span>
             </Button>
           </div>
 
           <!-- Resumen de propiedades seleccionadas -->
           <div v-if="propiedadesSeleccionadas.length > 0" class="space-y-2">
-            <div class="flex justify-between items-center text-sm">
-              <span>Total de propiedades: {{ propiedadesSeleccionadas.length }}</span>              
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-2">
+              <span>Total de propiedades: {{ propiedadesSeleccionadas.length }}</span>
             </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div 
-                v-for="prop in propiedadesSeleccionadas" 
+
+            <div class="grid grid-cols-1 gap-2 sm:gap-3">
+              <div
+                v-for="prop in propiedadesSeleccionadas"
                 :key="prop.id"
-                class="border rounded-lg p-2 text-sm"
+                class="border rounded-lg p-3 text-sm"
                 :class="{ 'border-primary bg-primary/5': prop.es_principal }"
               >
-                <div class="flex justify-between items-start">
-                  <div>
-                    <p class="font-medium">{{ prop.codigo }}</p>
-                    <p class="text-muted-foreground">{{ prop.ubicacion }}</p>
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium truncate">{{ prop.codigo }}</p>
+                    <p class="text-muted-foreground text-xs sm:text-sm truncate">{{ prop.ubicacion }}</p>
                   </div>
-                  <div class="text-right">
+                  <div class="flex-shrink-0">
                     <Badge v-if="prop.es_principal" variant="default" class="text-xs">
                       Principal
                     </Badge>
@@ -147,16 +157,16 @@
             </div>
           </div>
 
-          <div v-else class="text-center py-6 border-2 border-dashed rounded-lg">
+          <div v-else class="text-center py-6 sm:py-8 border-2 border-dashed rounded-lg">
             <Building2 class="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p class="text-muted-foreground text-sm">
+            <p class="text-muted-foreground text-sm mb-3">
               No hay propiedades asignadas
             </p>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              class="mt-2"
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="w-full sm:w-auto"
               @click="abrirSelectorPropiedades"
             >
               Asignar Propiedades
@@ -164,11 +174,21 @@
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" @click="closeDialog">
+        <DialogFooter class="flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            @click="closeDialog"
+            :disabled="form.processing"
+            class="w-full sm:w-auto order-2 sm:order-1"
+          >
             Cancelar
           </Button>
-          <Button type="submit" :disabled="form.processing">
+          <Button
+            type="submit"
+            :disabled="form.processing"
+            class="w-full sm:w-auto order-1 sm:order-2"
+          >
             {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear') }}
           </Button>
         </DialogFooter>

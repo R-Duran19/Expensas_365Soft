@@ -11,32 +11,27 @@ return new class extends Migration
         Schema::create('property_expenses', function (Blueprint $table) {
             $table->id();
 
-            // Relaciones principales
-            $table->foreignId('periodo_facturacion_id')
-                ->constrained('periodos_facturacion')
-                ->onDelete('cascade');
+            // Relaciones principales (sin foreign keys por ahora)
+            $table->unsignedBigInteger('expense_period_id');
 
-            $table->foreignId('propiedad_id')
-                ->constrained('propiedades')
-                ->onDelete('cascade');
+            $table->unsignedBigInteger('propiedad_id');
+
+            $table->unsignedBigInteger('propietario_id');
 
             // Facturación a propietario o inquilino
-            $table->foreignId('inquilino_id')
-                ->nullable()
-                ->constrained('inquilinos')
-                ->nullOnDelete();
+            $table->unsignedBigInteger('inquilino_id')->nullable();
 
             $table->enum('facturar_a', ['propietario', 'inquilino'])
                 ->default('propietario');
 
             // Desglose de montos
             $table->decimal('base_amount', 10, 2)->default(0);
+            $table->decimal('water_amount', 10, 2)->default(0);
             $table->decimal('other_amount', 10, 2)->default(0);
             $table->decimal('previous_debt', 10, 2)->default(0);
 
             // Agua
-            $table->integer('water_consumption')->unsigned()->default(0);
-            $table->decimal('water_amount', 10, 2)->default(0);
+            $table->decimal('water_consumption', 10, 2)->default(0);
             $table->decimal('water_factor', 10, 4)->nullable();
 
             // Lecturas históricas de agua
@@ -53,28 +48,53 @@ return new class extends Migration
                 ->default('pending');
 
             // Fechas
-            $table->date('issued_at');
-            $table->date('due_date');
+            $table->date('due_date')->nullable();
+            $table->timestamp('paid_at')->nullable();
 
-            // Control
-            $table->foreignId('usuario_generacion_id')
-                ->constrained('users')
-                ->onDelete('restrict');
-
-            $table->text('observaciones')->nullable();
+            // Notas
+            $table->text('notes')->nullable();
             $table->timestamps();
 
             // Índices
             $table->index('status');
-            $table->index(['periodo_facturacion_id', 'propiedad_id']);
+            $table->index(['expense_period_id', 'propiedad_id']);
 
             // Una propiedad solo puede tener una expensa por periodo
-            $table->unique(['periodo_facturacion_id', 'propiedad_id']);
+            $table->unique(['expense_period_id', 'propiedad_id']);
         });
     }
 
     public function down()
     {
         Schema::dropIfExists('property_expenses');
+    }
+
+    /**
+     * Add foreign keys after all tables exist
+     * This should be called manually after all migrations are done
+     */
+    public function upForeignKeys()
+    {
+        Schema::table('property_expenses', function (Blueprint $table) {
+            $table->foreign('expense_period_id')
+                ->references('id')
+                ->on('expense_periods')
+                ->onDelete('cascade');
+
+            $table->foreign('propiedad_id')
+                ->references('id')
+                ->on('propiedades')
+                ->onDelete('cascade');
+
+            $table->foreign('propietario_id')
+                ->references('id')
+                ->on('propietarios')
+                ->onDelete('cascade');
+
+            $table->foreign('inquilino_id')
+                ->references('id')
+                ->on('inquilinos')
+                ->nullOnDelete();
+        });
     }
 };

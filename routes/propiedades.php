@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PropietarioController;
+use App\Http\Controllers\InquilinoController;
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     
@@ -20,4 +21,12 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
 
     Route::post('propietarios/{propietario}/asignar-propiedad', [PropietarioController::class, 'asignarPropiedad'])->name('propietarios.asignar-propiedad');
     Route::delete('propietarios/{propietario}/desasignar-propiedad/{propiedad}', [PropietarioController::class, 'desasignarPropiedad'])->name('propietarios.desasignar-propiedad');
+
+    // Inquilinos
+    Route::post('inquilinos', [InquilinoController::class, 'store'])->name('inquilinos.store');
+    Route::put('inquilinos/{inquilino}', [InquilinoController::class, 'update'])->name('inquilinos.update');
+    Route::delete('inquilinos/{inquilino}', [InquilinoController::class, 'destroy'])->name('inquilinos.destroy');
+    Route::get('inquilinos/{inquilino}', [InquilinoController::class, 'show'])->name('inquilinos.show');
+    Route::post('inquilinos/{inquilino}/asignar-propiedad', [InquilinoController::class, 'asignarPropiedad'])->name('inquilinos.asignar-propiedad');
+    Route::delete('inquilinos/{inquilino}/desasignar-propiedad/{propiedad}', [InquilinoController::class, 'desasignarPropiedad'])->name('inquilinos.desasignar-propiedad');
 });

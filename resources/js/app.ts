@@ -31,9 +31,6 @@ createInertiaApp({
                 ripple: true,
             })
             .use(ToastService)
-            .use(ToastService)
-.use(ConfirmationService)
-// .use(DialogService)
             .use(ConfirmationService);
 
         vueApp.mount(el);

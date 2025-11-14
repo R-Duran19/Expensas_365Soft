@@ -123,105 +123,189 @@ const goToPage = (url: string | null) => {
 <template>
   <div class="px-6">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead class="bg-gray-50 dark:bg-gray-700">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Período
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Fecha
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Estado
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Total Generado
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Total Cobrado
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Propiedades
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          <tr v-if="periods.data.length === 0">
-            <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-              No hay períodos registrados
-            </td>
-          </tr>
-          <tr
-            v-for="period in periods.data"
-            :key="period.id"
-            class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900 dark:text-white">
+      <!-- Vista Desktop: Tabla tradicional -->
+      <div class="hidden lg:block">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Período
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Fecha
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Total Generado
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Total Cobrado
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Propiedades
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tr v-if="periods.data.length === 0">
+                <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  No hay períodos registrados
+                </td>
+              </tr>
+              <tr
+                v-for="period in periods.data"
+                :key="period.id"
+                class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ getPeriodName(period) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ new Date(period.period_date).toLocaleDateString('es-BO') }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <Badge
+                    :variant="period.status === 'open' ? 'default' : 'secondary'"
+                    :class="period.status === 'open' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'"
+                  >
+                    {{ period.status === 'open' ? 'Abierto' : 'Cerrado' }}
+                  </Badge>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white">
+                    {{ formatCurrency(period.total_generated) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 dark:text-white">
+                    {{ formatCurrency(period.total_collected) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ period.property_expenses_count }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div class="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      @click="viewPeriod(period)"
+                      title="Ver detalle"
+                    >
+                      <Eye class="h-4 w-4" />
+                    </Button>
+                    <Button
+                      v-if="period.status === 'open'"
+                      variant="ghost"
+                      size="sm"
+                      @click="closePeriod(period)"
+                      title="Cerrar período"
+                      class="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                    >
+                      <Lock class="h-4 w-4" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Vista Mobile: Cards -->
+      <div class="lg:hidden p-4 space-y-4">
+        <div v-if="periods.data.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          No hay períodos registrados
+        </div>
+
+        <div
+          v-for="period in periods.data"
+          :key="period.id"
+          class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3"
+        >
+          <!-- Header con período y estado -->
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
                 {{ getPeriodName(period) }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+              </h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {{ new Date(period.period_date).toLocaleDateString('es-BO') }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <Badge 
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Badge
                 :variant="period.status === 'open' ? 'default' : 'secondary'"
                 :class="period.status === 'open' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'"
+                class="text-xs"
               >
                 {{ period.status === 'open' ? 'Abierto' : 'Cerrado' }}
               </Badge>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-900 dark:text-white">
+            </div>
+          </div>
+
+          <!-- Montos -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white dark:bg-gray-600 rounded p-3">
+              <p class="text-xs text-gray-500 dark:text-gray-300">Generado</p>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">
                 {{ formatCurrency(period.total_generated) }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-900 dark:text-white">
+              </p>
+            </div>
+            <div class="bg-white dark:bg-gray-600 rounded p-3">
+              <p class="text-xs text-gray-500 dark:text-gray-300">Cobrado</p>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">
                 {{ formatCurrency(period.total_collected) }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ period.property_expenses_count }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div class="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="viewPeriod(period)"
-                  title="Ver detalle"
-                >
-                  <Eye class="h-4 w-4" />
-                </Button>
-                <Button
-                  v-if="period.status === 'open'"
-                  variant="ghost"
-                  size="sm"
-                  @click="closePeriod(period)"
-                  title="Cerrar período"
-                  class="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
-                >
-                  <Lock class="h-4 w-4" />
-                </Button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </p>
+            </div>
+          </div>
+
+          <!-- Info adicional y acciones -->
+          <div class="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              {{ period.property_expenses_count }} propiedades
+            </div>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="viewPeriod(period)"
+                title="Ver detalle"
+                class="h-8 w-8 p-0"
+              >
+                <Eye class="h-3 w-3" />
+              </Button>
+              <Button
+                v-if="period.status === 'open'"
+                variant="ghost"
+                size="sm"
+                @click="closePeriod(period)"
+                title="Cerrar período"
+                class="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+              >
+                <Lock class="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Paginación -->
       <div v-if="periods.last_page > 1" class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-        <div class="flex items-center justify-between">
+        <!-- Desktop: Layout horizontal -->
+        <div class="hidden sm:flex items-center justify-between">
           <div class="text-sm text-gray-700 dark:text-gray-300">
             Mostrando {{ periods.data.length }} de {{ periods.total }} períodos
           </div>
@@ -244,6 +328,38 @@ const goToPage = (url: string | null) => {
               @click="goToPage(periods.links.find(link => link.label === 'Next &raquo;')?.url || null)"
             >
               Siguiente
+            </Button>
+          </div>
+        </div>
+
+        <!-- Mobile: Layout vertical -->
+        <div class="sm:hidden space-y-3">
+          <div class="text-sm text-gray-700 dark:text-gray-300 text-center">
+            Mostrando {{ periods.data.length }} de {{ periods.total }} períodos
+          </div>
+          <div class="flex items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="periods.current_page === 1"
+              @click="goToPage(periods.links.find(link => link.label === '&laquo; Previous')?.url || null)"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </Button>
+            <span class="text-sm text-gray-700 dark:text-gray-300 px-2">
+              {{ periods.current_page }}/{{ periods.last_page }}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="periods.current_page === periods.last_page"
+              @click="goToPage(periods.links.find(link => link.label === 'Next &raquo;')?.url || null)"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
             </Button>
           </div>
         </div>

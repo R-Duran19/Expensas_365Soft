@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import ExpensePeriodsHeader from './ExpensePeriodsHeader.vue';
 import ExpensePeriodsTable from './ExpensePeriodsTable.vue';
 import ExpensePeriodFormDialog from './ExpensePeriodFormDialog.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 // ==========================================
 // TIPOS
@@ -38,7 +38,7 @@ interface Props {
   periods: PaginatedPeriods;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 // ==========================================
 // BREADCRUMBS
@@ -53,27 +53,47 @@ const breadcrumbs: BreadcrumbItem[] = [
 const showCreateDialog = ref(false);
 
 // ==========================================
+// COMPUTED
+// ==========================================
+const hasOpenPeriod = computed(() => {
+  return props.periods.data.some(period => period.status === 'open');
+});
+
+// ==========================================
 // MÉTODOS
 // ==========================================
 const handleCreate = () => {
   showCreateDialog.value = false;
-  // Recargar la página para mostrar los nuevos datos
-  window.location.reload();
+  // Usar visit para recargar solo la data sin recargar la página completa
+  router.visit('/expense-periods', {
+    method: 'get',
+    preserveScroll: true,
+    only: ['periods'],
+    onSuccess: () => {
+      console.log('Datos recargados exitosamente');
+    },
+    onError: (errors) => {
+      console.error('Error al recargar datos:', errors);
+    }
+  });
 };
 </script>
 
 <template>
   <AppLayout :breadcrumbs="breadcrumbs">
     <Head title="Períodos de Expensas" />
-    
-    <div class="space-y-6">
-      <ExpensePeriodsHeader 
+
+    <div class="space-y-4 sm:space-y-6 min-h-0">
+      <ExpensePeriodsHeader
+        :has-open-period="hasOpenPeriod"
         @create-period="showCreateDialog = true"
       />
 
-      <ExpensePeriodsTable :periods="periods" />
+      <div class="flex-1 min-h-0">
+        <ExpensePeriodsTable :periods="props.periods" />
+      </div>
 
-      <ExpensePeriodFormDialog 
+      <ExpensePeriodFormDialog
         v-model:open="showCreateDialog"
         @save="handleCreate"
         @cancel="showCreateDialog = false"

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Propietario;
 use App\Models\Propiedad;
+use App\Models\Inquilino;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -12,30 +13,65 @@ class PropietarioController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Propietario::withCount('propiedades');
+        $activeTab = $request->get('activeTab', 'propietarios');
 
-        // Búsqueda
+        // Cargar ambos conjuntos de datos
+        $propietariosQuery = Propietario::withCount('propiedades');
+        $inquilinosQuery = Inquilino::withCount('propiedades');
+
+        // Búsqueda para propietarios
         if ($request->has('search') && $request->search) {
-            $query->buscar($request->search);
+            $searchTerm = $request->search;
+            $propietariosQuery->buscar($searchTerm);
+            $inquilinosQuery->buscar($searchTerm);
         }
 
-        // Filtro por estado
+        // Filtros para propietarios
         if ($request->has('activo') && $request->activo !== null) {
             $activo = $request->activo === 'true' || $request->activo === true;
-            $query->where('activo', $activo);
+            $propietariosQuery->where('activo', $activo);
+            $inquilinosQuery->where('activo', $activo);
+        }
+
+        // Filtro por contrato vigente para inquilinos
+        if ($request->has('contrato_vigente') && $request->contrato_vigente !== null) {
+            $vigente = $request->contrato_vigente === 'true' || $request->contrato_vigente === true;
+            if ($vigente) {
+                $inquilinosQuery->conContratoVigente();
+            }
+            // Si no es vigente, mostramos todos (sin filtro específico)
         }
 
         // Ordenamiento
         $orderBy = $request->get('orderBy', 'nombre_completo');
         $orderDirection = $request->get('orderDirection', 'asc');
-        $query->orderBy($orderBy, $orderDirection);
+        $propietariosQuery->orderBy($orderBy, $orderDirection);
+        $inquilinosQuery->orderBy($orderBy, $orderDirection);
 
-        $propietarios = $query->paginate($request->get('perPage', 15))
-            ->withQueryString();
+        // Paginar ambos
+        $perPage = $request->get('perPage', 15);
+        $propietarios = $propietariosQuery->paginate($perPage)->withQueryString();
+        $inquilinos = $inquilinosQuery->paginate($perPage)->withQueryString();
+
+        // Cargar propiedades para inquilinos
+        $inquilinos->getCollection()->each(function ($inquilino) {
+            $inquilino->load(['propiedades' => function ($query) {
+                $query->with(['tipoPropiedad'])
+                     ->withPivot([
+                         'fecha_inicio_contrato',
+                         'fecha_fin_contrato',
+                         'es_inquilino_principal',
+                         'observaciones'
+                     ])
+                     ->orderBy('inquilino_propiedad.fecha_inicio_contrato', 'desc');
+            }]);
+        });
 
         return Inertia::render('Propietarios', [
             'propietarios' => $propietarios,
-            'filters' => $request->only(['search', 'activo', 'orderBy', 'orderDirection'])
+            'inquilinos' => $inquilinos,
+            'activeTab' => $activeTab,
+            'filters' => $request->only(['search', 'activo', 'contrato_vigente', 'orderBy', 'orderDirection'])
         ]);
     }
 

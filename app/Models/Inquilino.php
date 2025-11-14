@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Inquilino extends Model
 {
@@ -13,29 +13,54 @@ class Inquilino extends Model
     protected $table = 'inquilinos';
 
     protected $fillable = [
-        'propiedad_id',
         'nombre_completo',
         'ci',
         'telefono',
         'email',
-        'fecha_inicio_contrato',
-        'fecha_fin_contrato',
         'activo',
         'observaciones',
     ];
 
     protected $casts = [
-        'fecha_inicio_contrato' => 'date',
-        'fecha_fin_contrato' => 'date',
         'activo' => 'boolean',
     ];
 
     /**
-     * Obtener la propiedad asociada
+     * Obtener todas las propiedades del inquilino
      */
-    public function propiedad(): BelongsTo
+    public function propiedades(): BelongsToMany
     {
-        return $this->belongsTo(Propiedad::class, 'propiedad_id');
+        return $this->belongsToMany(Propiedad::class, 'inquilino_propiedad')
+            ->withPivot([
+                'fecha_inicio_contrato',
+                'fecha_fin_contrato',
+                'es_inquilino_principal',
+                'observaciones'
+            ])
+            ->withTimestamps();
+    }
+
+    /**
+     * Obtener solo las propiedades activas (sin fecha_fin o con fecha_fin futura)
+     */
+    public function propiedadesActivas(): BelongsToMany
+    {
+        return $this->propiedades()
+            ->whereNull('inquilino_propiedad.fecha_fin_contrato')
+            ->orWhere('inquilino_propiedad.fecha_fin_contrato', '>=', now());
+    }
+
+    /**
+     * Obtener propiedades con contrato vigente
+     */
+    public function propiedadesContratoVigente(): BelongsToMany
+    {
+        return $this->propiedades()
+            ->where('inquilino_propiedad.fecha_inicio_contrato', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('inquilino_propiedad.fecha_fin_contrato')
+                      ->orWhere('inquilino_propiedad.fecha_fin_contrato', '>=', now());
+            });
     }
 
     /**
@@ -47,32 +72,36 @@ class Inquilino extends Model
     }
 
     /**
-     * Scope para inquilinos con contrato vigente
+     * Scope para inquilinos con algún contrato vigente
      */
-    public function scopeContratoVigente($query)
+    public function scopeConContratoVigente($query)
     {
-        return $query->where('fecha_inicio_contrato', '<=', now())
-            ->where(function ($q) {
-                $q->whereNull('fecha_fin_contrato')
-                  ->orWhere('fecha_fin_contrato', '>=', now());
-            });
+        return $query->whereHas('propiedades', function ($q) {
+            $q->where('inquilino_propiedad.fecha_inicio_contrato', '<=', now())
+              ->where(function ($subQ) {
+                  $subQ->whereNull('inquilino_propiedad.fecha_fin_contrato')
+                        ->orWhere('inquilino_propiedad.fecha_fin_contrato', '>=', now());
+              });
+        });
     }
 
     /**
-     * Verificar si el contrato está vigente
+     * Verificar si tiene algún contrato vigente
      */
-    public function contratoVigente(): bool
+    public function tieneContratoVigente(): bool
     {
-        $hoy = now();
-        
-        if ($this->fecha_inicio_contrato > $hoy) {
-            return false;
-        }
+        return $this->propiedadesContratoVigente()->count() > 0;
+    }
 
-        if ($this->fecha_fin_contrato && $this->fecha_fin_contrato < $hoy) {
-            return false;
-        }
-
-        return true;
+    /**
+     * Buscar inquilino por CI o nombre
+     */
+    public function scopeBuscar($query, $termino)
+    {
+        return $query->where(function ($q) use ($termino) {
+            $q->where('nombre_completo', 'like', "%{$termino}%")
+              ->orWhere('ci', 'like', "%{$termino}%")
+              ->orWhere('email', 'like', "%{$termino}%");
+        });
     }
 }

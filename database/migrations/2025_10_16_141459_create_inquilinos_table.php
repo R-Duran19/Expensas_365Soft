@@ -10,21 +10,18 @@ return new class extends Migration
     {
         Schema::create('inquilinos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('propiedad_id')->constrained('propiedades')->cascadeOnDelete();
             $table->string('nombre_completo');
             $table->string('ci', 20)->nullable();
             $table->string('telefono', 20)->nullable();
             $table->string('email')->nullable();
-            $table->date('fecha_inicio_contrato');
-            $table->date('fecha_fin_contrato')->nullable();
             $table->boolean('activo')->default(true);
             $table->text('observaciones')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             // Índices
-            $table->index('propiedad_id');
-            $table->index(['propiedad_id', 'activo']);
+            $table->index('ci');
+            $table->index('activo');
         });
     }
 
