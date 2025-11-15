@@ -1,4 +1,4 @@
-import { MapPinned, Tag, LockKeyhole, Users, Droplets, Calendar  } from 'lucide-vue-next';
+import { MapPinned, Tag, LockKeyhole, Users, Droplets, Calendar, FileText  } from 'lucide-vue-next';
 import { dashboard, terrenos, categorias, accesos } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -7,6 +7,12 @@ export const allMainNavItems: NavItem[] = [
     title: 'Dashboard',
     href: dashboard().url,
     icon: MapPinned,
+  },
+  {
+    title: 'Expensas',
+    href: '/property-expenses',
+    icon: FileText,
+    roles: ['admin'],
   },
   {
     title: 'Períodos de Expensas',

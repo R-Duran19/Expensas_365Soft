@@ -33,3 +33,5 @@ require __DIR__.'/lecturas.php';
 require __DIR__.'/grupos-medidores.php';
 require __DIR__.'/expensas.php';
 require __DIR__.'/expense-periods.php';
+require __DIR__.'/property-expenses.php';
+require __DIR__.'/facturas-medidores-principales.php';

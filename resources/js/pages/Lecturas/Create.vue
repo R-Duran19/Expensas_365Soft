@@ -39,9 +39,15 @@ interface LecturaItem {
   error?: string;
 }
 
+interface PeriodoActivo {
+  id: number;
+  nombre: string;
+  mes_periodo: string;
+}
+
 interface Props {
   medidores: Medidor[];
-  mesActual: string;
+  periodoActivo: PeriodoActivo | null;
 }
 
 const props = defineProps<Props>();
@@ -59,7 +65,6 @@ const breadcrumbs: BreadcrumbItemType[] = [
 // ESTADO
 // ==========================================
 const fechaLectura = ref(new Date().toISOString().split('T')[0]);
-const mesPeriodo = ref(props.mesActual);
 const busqueda = ref('');
 const cargandoLectura = ref<number | null>(null);
 const enviando = ref(false); // Nuevo estado para controlar envío
@@ -105,8 +110,8 @@ const lecturasInvalidas = computed(() => {
 const totalLecturas = computed(() => lecturasValidas.value.length);
 
 const formularioValido = computed(() => {
-  return fechaLectura.value && 
-         mesPeriodo.value && 
+  return fechaLectura.value &&
+         props.periodoActivo &&
          totalLecturas.value > 0 &&
          lecturasInvalidas.value.length === 0; // No hay lecturas inválidas
 });
@@ -215,8 +220,8 @@ const validarAntesDeEnviar = (): boolean => {
     return false;
   }
 
-  if (!mesPeriodo.value) {
-    showError('El período es requerido');
+  if (!props.periodoActivo) {
+    showError('No hay un período activo configurado. Contacta al administrador.');
     return false;
   }
 
@@ -251,7 +256,7 @@ const guardarLecturas = async () => {
 
     await router.post('/lecturas/masivo', {
       fecha_lectura: fechaLectura.value,
-      mes_periodo: mesPeriodo.value,
+      period_id: props.periodoActivo!.id,
       lecturas: lecturasParaEnviar
     }, {
       onSuccess: () => {
@@ -260,21 +265,21 @@ const guardarLecturas = async () => {
       },
       onError: (errors) => {
         let mensajeError = 'Error al registrar las lecturas';
-        
+
         if (errors.lecturas) {
           mensajeError = `Errores en las lecturas: ${errors.lecturas}`;
         } else if (errors.fecha_lectura) {
           mensajeError = `Error en fecha: ${errors.fecha_lectura}`;
-        } else if (errors.mes_periodo) {
-          mensajeError = `Error en período: ${errors.mes_periodo}`;
+        } else if (errors.period_id) {
+          mensajeError = `Error en período: ${errors.period_id}`;
         }
-        
+
         showError(mensajeError);
-        
+
         // Mostrar errores específicos si existen
         if (errors && typeof errors === 'object') {
           Object.entries(errors).forEach(([key, value]) => {
-            if (key !== 'lecturas' && key !== 'fecha_lectura' && key !== 'mes_periodo') {
+            if (key !== 'lecturas' && key !== 'fecha_lectura' && key !== 'period_id') {
               console.error(`Error en ${key}:`, value);
             }
           });
@@ -289,15 +294,6 @@ const guardarLecturas = async () => {
   }
 };
 
-const formatPeriodo = (periodo: string): string => {
-  try {
-    const [year, month] = periodo.split('-');
-    const fecha = new Date(parseInt(year), parseInt(month) - 1);
-    return fecha.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' });
-  } catch {
-    return periodo;
-  }
-};
 </script>
 
 <template>
@@ -325,10 +321,21 @@ const formatPeriodo = (periodo: string): string => {
                             </div>
 
                             <div class="space-y-2">
-                                <Label for="mes_periodo">Período *</Label>
-                                <Input id="mes_periodo" v-model="mesPeriodo" type="month" required />
-                                <p class="text-sm text-muted-foreground">
-                                    {{ formatPeriodo(mesPeriodo) }}
+                                <Label>Período de Facturación *</Label>
+                                <div v-if="periodoActivo" class="h-10 px-3 py-2 bg-muted border-2 border-border rounded-lg flex items-center">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium">{{ periodoActivo.nombre }}</span>
+                                        <Badge variant="secondary" class="text-xs">Activo</Badge>
+                                    </div>
+                                </div>
+                                <div v-else class="h-10 px-3 py-2 bg-red-50 border-2 border-red-200 rounded-lg flex items-center">
+                                    <div class="flex items-center gap-2 text-red-600 text-sm">
+                                        <AlertCircle class="h-4 w-4" />
+                                        <span>No hay período activo</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-muted-foreground">
+                                    Todas las lecturas se registrarán en el período activo actual
                                 </p>
                             </div>
 
@@ -339,6 +346,21 @@ const formatPeriodo = (periodo: string): string => {
                                         <CheckCircle2 class="h-4 w-4 mr-1" />
                                         {{ totalLecturas }} lecturas
                                     </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alerta si no hay período activo -->
+                        <div v-if="!periodoActivo" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                            <div class="flex items-start gap-2">
+                                <AlertCircle class="h-5 w-5 text-red-600 mt-0.5" />
+                                <div>
+                                    <p class="text-sm font-medium text-red-800">
+                                        No hay período activo configurado
+                                    </p>
+                                    <p class="text-sm text-red-700">
+                                        No se pueden registrar lecturas hasta que se configure un período activo en el sistema.
+                                    </p>
                                 </div>
                             </div>
                         </div>

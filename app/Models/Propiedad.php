@@ -76,22 +76,14 @@ class Propiedad extends Model
     }
 
     /**
-     * Obtener todos los inquilinos de esta propiedad
-     */
-    public function inquilinos(): HasMany
-    {
-        return $this->hasMany(Inquilino::class, 'propiedad_id');
-    }
-
-    /**
-     * Obtener el inquilino activo actual
+     * Obtener el inquilino activo actual (simplificado)
+     * Por ahora, solo verificamos si hay inquilinos activos en el sistema
      */
     public function inquilinoActivo(): HasOne
     {
-        return $this->hasOne(Inquilino::class, 'propiedad_id')
-            ->where('activo', true)
-            ->whereNull('fecha_fin_contrato')
-            ->orWhere('fecha_fin_contrato', '>=', now());
+        // Simplificado - solo devuelve inquilinos activos
+        return $this->hasOne(Inquilino::class)
+            ->where('activo', true);
     }
 
     /**

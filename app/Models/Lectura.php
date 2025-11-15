@@ -16,6 +16,7 @@ class Lectura extends Model
         'lectura_anterior',
         'fecha_lectura',
         'mes_periodo',
+        'period_id',
         'usuario_id',
         'observaciones'
         // 'consumo' NO va aquí porque es columna virtual
@@ -47,11 +48,38 @@ class Lectura extends Model
     }
 
     /**
-     * Relación con período de facturación
+     * Relación con período de facturación (nueva relación)
+     */
+    public function expensePeriod(): BelongsTo
+    {
+        return $this->belongsTo(ExpensePeriod::class, 'period_id');
+    }
+
+    /**
+     * Relación con período de facturación (mantener compatibilidad)
+     * @deprecated Usar expensePeriod() en su lugar
      */
     public function periodoFacturacion(): BelongsTo
     {
-        return $this->belongsTo(PeriodoFacturacion::class, 'mes_periodo', 'mes_periodo');
+        return $this->belongsTo(ExpensePeriod::class, 'period_id');
+    }
+
+    /**
+     * Obtener período formateado (nuevo método)
+     */
+    public function getPeriodoFormateadoAttribute(): string
+    {
+        if ($this->expensePeriod) {
+            return $this->expensePeriod->getPeriodName();
+        }
+
+        // Fallback al método antiguo para compatibilidad
+        try {
+            $fecha = Carbon::createFromFormat('Y-m', $this->mes_periodo);
+            return $fecha->locale('es')->isoFormat('MMMM YYYY');
+        } catch (\Exception $e) {
+            return $this->mes_periodo ?? 'Período desconocido';
+        }
     }
 
     /**
@@ -107,11 +135,45 @@ class Lectura extends Model
     }
 
     /**
-     * Scope: lecturas de un período específico
+     * Scope: lecturas de un período específico (nuevo método)
      */
-    public function scopeDelPeriodo($query, string $periodo)
+    public function scopeDelPeriodo($query, $periodo)
     {
+        // Si es un ID numérico, buscar por period_id
+        if (is_numeric($periodo)) {
+            return $query->where('period_id', $periodo);
+        }
+
+        // Si es formato string (2025-11), mantener compatibilidad
         return $query->where('mes_periodo', $periodo);
+    }
+
+    /**
+     * Scope: lecturas de un período específico por ID
+     */
+    public function scopeDelPeriodoId($query, int $periodId)
+    {
+        return $query->where('period_id', $periodId);
+    }
+
+    /**
+     * Scope: lecturas de un año específico
+     */
+    public function scopeDelAnio($query, int $anio)
+    {
+        return $query->whereHas('expensePeriod', function($q) use ($anio) {
+            $q->where('year', $anio);
+        });
+    }
+
+    /**
+     * Scope: lecturas de un mes específico
+     */
+    public function scopeDelMes($query, int $mes)
+    {
+        return $query->whereHas('expensePeriod', function($q) use ($mes) {
+            $q->where('month', $mes);
+        });
     }
 
     /**
@@ -130,19 +192,7 @@ class Lectura extends Model
         return $query->whereRaw('(lectura_actual - COALESCE(lectura_anterior, 0)) > ?', [$umbral]);
     }
 
-    /**
-     * Formatear período para mostrar (2024-01 → Enero 2024)
-     */
-    public function getPeriodoFormateadoAttribute(): string
-    {
-        try {
-            $fecha = Carbon::createFromFormat('Y-m', $this->mes_periodo);
-            return $fecha->locale('es')->isoFormat('MMMM YYYY');
-        } catch (\Exception $e) {
-            return $this->mes_periodo;
-        }
-    }
-
+    
     /**
      * Boot: eventos del modelo
      */

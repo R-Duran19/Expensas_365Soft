@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lectura;
 use App\Models\Medidor;
+use App\Models\ExpensePeriod;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +20,16 @@ class LecturaController extends Controller
     {
         $query = Lectura::with([
             'medidor.propiedad.tipoPropiedad',
-            'usuario'
+            'usuario',
+            'expensePeriod' // Cargar relación con período
         ]);
 
         // Variable para verificar si hay filtros aplicados
         $tieneFiltros = false;
 
-        // Filtro por mes/período
-        if ($request->filled('periodo')) {
-            $query->where('mes_periodo', $request->periodo);
+        // Filtro por period_id (único método)
+        if ($request->filled('period_id')) {
+            $query->where('period_id', $request->period_id);
             $tieneFiltros = true;
         }
 
@@ -60,7 +62,7 @@ class LecturaController extends Controller
             $lecturas = $query
                 ->orderBy('fecha_lectura', 'desc')
                 ->paginate(10)
-                ->appends($request->only(['periodo', 'medidor_id', 'fecha_desde', 'fecha_hasta']))
+                ->appends($request->only(['period_id', 'medidor_id', 'fecha_desde', 'fecha_hasta']))
                 ->through(function ($lectura) {
                     $tipoPropiedadId = $lectura->medidor->propiedad->tipo_propiedad_id;
                     $tipo = in_array($tipoPropiedadId, [3, 4]) ? 'comercial' : 'domiciliario';
@@ -72,7 +74,8 @@ class LecturaController extends Controller
                         'lectura_anterior' => $lectura->lectura_anterior,
                         'consumo' => $lectura->consumo,
                         'fecha_lectura' => $lectura->fecha_lectura,
-                        'mes_periodo' => $lectura->mes_periodo,
+                        'period_id' => $lectura->period_id,
+                        'periodo_formateado' => $lectura->periodo_formateado,
                         'observaciones' => $lectura->observaciones,
                         'created_at' => $lectura->created_at,
                         'medidor' => [
@@ -96,17 +99,35 @@ class LecturaController extends Controller
                 });
         }
 
-        // Obtener períodos disponibles
-        $periodos = Lectura::select('mes_periodo')
-            ->distinct()
-            ->orderBy('mes_periodo', 'desc')
-            ->pluck('mes_periodo');
+        // Obtener períodos disponibles desde expense_periods
+        $periodos = ExpensePeriod::orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->get()
+            ->map(function ($period) {
+                return [
+                    'id' => $period->id,
+                    'nombre' => $period->getPeriodName(),
+                    'mes_periodo' => $period->year . '-' . str_pad($period->month, 2, '0', STR_PAD_LEFT)
+                ];
+            });
+
+  
+        // Obtener período activo
+        $periodoActivo = ExpensePeriod::where('status', 'open')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->first();
 
         return Inertia::render('Lecturas', [
             'lecturas' => $lecturas,
             'periodos' => $periodos,
-            'filtros' => $request->only(['periodo', 'medidor_id', 'fecha_desde', 'fecha_hasta']),
-            'tieneFiltros' => $tieneFiltros // Nuevo
+            'filtros' => $request->only(['period_id', 'medidor_id', 'fecha_desde', 'fecha_hasta']),
+            'tieneFiltros' => $tieneFiltros,
+            'periodoActivo' => $periodoActivo ? [
+                'id' => $periodoActivo->id,
+                'nombre' => $periodoActivo->getPeriodName(),
+                'mes_periodo' => $periodoActivo->year . '-' . str_pad($periodoActivo->month, 2, '0', STR_PAD_LEFT)
+            ] : null
         ]);
     }
 
@@ -135,11 +156,19 @@ class LecturaController extends Controller
                 ];
             });
 
-        $mesActual = Carbon::now()->format('Y-m');
+        // Obtener el período activo actual
+        $periodoActivo = ExpensePeriod::where('status', 'open')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->first();
 
         return Inertia::render('Lecturas/Create', [
             'medidores' => $medidores,
-            'mesActual' => $mesActual
+            'periodoActivo' => $periodoActivo ? [
+                'id' => $periodoActivo->id,
+                'nombre' => $periodoActivo->getPeriodName(),
+                'mes_periodo' => $periodoActivo->year . '-' . str_pad($periodoActivo->month, 2, '0', STR_PAD_LEFT)
+            ] : null
         ]);
     }
 
@@ -152,7 +181,7 @@ class LecturaController extends Controller
             'medidor_id' => 'required|exists:medidores,id',
             'lectura_actual' => 'required|numeric|min:0|regex:/^\d+(\.\d{1,3})?$/',
             'fecha_lectura' => 'required|date|before_or_equal:today',
-            'mes_periodo' => 'required|string|regex:/^\d{4}-\d{2}$/',
+            'period_id' => 'required|exists:expense_periods,id',
             'observaciones' => 'nullable|string|max:1000'
         ]);
 
@@ -168,14 +197,15 @@ class LecturaController extends Controller
                 ]);
             }
 
-            // Verificar duplicados
+            // Verificar duplicados usando period_id
             $existeLectura = Lectura::where('medidor_id', $validated['medidor_id'])
-                ->where('mes_periodo', $validated['mes_periodo'])
+                ->where('period_id', $validated['period_id'])
                 ->exists();
 
             if ($existeLectura) {
+                $period = ExpensePeriod::find($validated['period_id']);
                 throw ValidationException::withMessages([
-                    'mes_periodo' => 'Ya existe una lectura para este medidor en el período seleccionado.'
+                    'period_id' => "Ya existe una lectura para este medidor en el período {$period->getPeriodName()}."
                 ]);
             }
 
@@ -206,13 +236,18 @@ class LecturaController extends Controller
                 ));
             }
 
+            // Obtener mes_periodo para compatibilidad
+            $period = ExpensePeriod::find($validated['period_id']);
+            $mesPeriodo = $period->year . '-' . str_pad($period->month, 2, '0', STR_PAD_LEFT);
+
             // Crear lectura
             $lectura = Lectura::create([
                 'medidor_id' => $validated['medidor_id'],
                 'lectura_actual' => $validated['lectura_actual'],
                 'lectura_anterior' => $lecturaAnterior,
                 'fecha_lectura' => $validated['fecha_lectura'],
-                'mes_periodo' => $validated['mes_periodo'],
+                'period_id' => $validated['period_id'],
+                'mes_periodo' => $mesPeriodo, // Mantener para compatibilidad
                 'usuario_id' => auth()->id(),
                 'observaciones' => $validated['observaciones']
             ]);
@@ -265,7 +300,7 @@ class LecturaController extends Controller
         return response()->json([
             'lectura_anterior' => $ultimaLectura ? $ultimaLectura->lectura_actual : 0,
             'fecha_ultima_lectura' => $ultimaLectura?->fecha_lectura,
-            'mes_periodo_anterior' => $ultimaLectura?->mes_periodo
+            'period_id_anterior' => $ultimaLectura?->period_id
         ]);
     }
 
@@ -299,15 +334,19 @@ class LecturaController extends Controller
      */
     public function estadisticas(Request $request)
     {
-        $periodo = $request->input('periodo', Carbon::now()->format('Y-m'));
+        $periodoId = $request->input('period_id');
+
+        if (!$periodoId) {
+            return response()->json(['error' => 'period_id es requerido'], 400);
+        }
 
         $stats = [
-            'total_lecturas' => Lectura::delPeriodo($periodo)->count(),
-            'consumo_total' => Lectura::delPeriodo($periodo)->sum('consumo'),
-            'consumo_promedio' => Lectura::delPeriodo($periodo)->avg('consumo'),
-            'consumo_maximo' => Lectura::delPeriodo($periodo)->max('consumo'),
+            'total_lecturas' => Lectura::delPeriodoId($periodoId)->count(),
+            'consumo_total' => Lectura::delPeriodoId($periodoId)->sum('consumo'),
+            'consumo_promedio' => Lectura::delPeriodoId($periodoId)->avg('consumo'),
+            'consumo_maximo' => Lectura::delPeriodoId($periodoId)->max('consumo'),
             'lecturas_pendientes' => Medidor::activos()->count() -
-                Lectura::delPeriodo($periodo)->distinct('medidor_id')->count()
+                Lectura::delPeriodoId($periodoId)->distinct('medidor_id')->count()
         ];
 
         return response()->json($stats);
@@ -320,7 +359,7 @@ class LecturaController extends Controller
     {
         $validated = $request->validate([
             'fecha_lectura' => 'required|date|before_or_equal:today',
-            'mes_periodo' => 'required|string|regex:/^\d{4}-\d{2}$/',
+            'period_id' => 'required|exists:expense_periods,id',
             'lecturas' => 'required|array|min:1',
             'lecturas.*.medidor_id' => 'required|exists:medidores,id',
             'lecturas.*.lectura_actual' => 'required|integer|min:0',
@@ -329,6 +368,10 @@ class LecturaController extends Controller
 
         try {
             DB::beginTransaction();
+
+            // Obtener mes_periodo para compatibilidad
+            $period = ExpensePeriod::find($validated['period_id']);
+            $mesPeriodo = $period->year . '-' . str_pad($period->month, 2, '0', STR_PAD_LEFT);
 
             $lecturas_creadas = 0;
             $errores = [];
@@ -341,7 +384,7 @@ class LecturaController extends Controller
 
                     // Verificar duplicado
                     if (Lectura::where('medidor_id', $lecturaData['medidor_id'])
-                        ->where('mes_periodo', $validated['mes_periodo'])
+                        ->where('period_id', $validated['period_id'])
                         ->exists()
                     ) {
                         $errores[] = "Medidor {$medidor->numero_medidor}: ya existe lectura para este período";
@@ -359,7 +402,8 @@ class LecturaController extends Controller
                         'lectura_actual' => $lecturaData['lectura_actual'],
                         'lectura_anterior' => $lecturaAnterior,
                         'fecha_lectura' => $validated['fecha_lectura'],
-                        'mes_periodo' => $validated['mes_periodo'],
+                        'period_id' => $validated['period_id'],
+                        'mes_periodo' => $mesPeriodo, // Mantener para compatibilidad
                         'usuario_id' => auth()->id(),
                         'observaciones' => $lecturaData['observaciones'] ?? null
                     ]);

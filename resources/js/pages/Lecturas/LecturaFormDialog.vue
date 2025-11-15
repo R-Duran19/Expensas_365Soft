@@ -37,7 +37,7 @@ interface Lectura {
   lectura_anterior: number | null;
   consumo: number;
   fecha_lectura: string;
-  mes_periodo: string;
+  period_id: number | null;
   observaciones: string | null;
   medidor: Medidor;
 }
@@ -45,12 +45,19 @@ interface Lectura {
 interface UltimaLecturaResponse {
   lectura_anterior: number;
   fecha_ultima_lectura: string | null;
-  mes_periodo_anterior: string | null;
+  period_id_anterior: number | null;
+}
+
+interface PeriodoActivo {
+  id: number;
+  nombre: string;
+  mes_periodo: string;
 }
 
 interface Props {
   open: boolean;
   lectura?: Lectura | null;
+  periodoActivo?: PeriodoActivo | null;
 }
 
 const props = defineProps<Props>();
@@ -70,7 +77,7 @@ const form = useForm({
   medidor_id: null as number | null,
   lectura_actual: '',
   fecha_lectura: new Date().toISOString().split('T')[0],
-  mes_periodo: new Date().toISOString().slice(0, 7),
+  period_id: props.periodoActivo?.id || null,
   observaciones: ''
 });
 
@@ -132,23 +139,23 @@ watch(() => props.open, async (newVal, oldVal) => {
       form.medidor_id = props.lectura.medidor_id;
       form.lectura_actual = props.lectura.lectura_actual.toString();
       form.fecha_lectura = props.lectura.fecha_lectura;
-      form.mes_periodo = props.lectura.mes_periodo;
+      form.period_id = props.lectura.period_id;
       form.observaciones = props.lectura.observaciones ?? '';
-      
+
       ultimaLecturaInfo.value = {
         lectura_anterior: props.lectura.lectura_anterior ?? 0,
         fecha_ultima_lectura: null,
-        mes_periodo_anterior: null,
+        period_id_anterior: null,
       };
     } else {
       // Modo creación
       form.reset();
       form.fecha_lectura = new Date().toISOString().split('T')[0];
-      form.mes_periodo = new Date().toISOString().slice(0, 7);
+      form.period_id = props.periodoActivo?.id || null;
       ultimaLecturaInfo.value = {
         lectura_anterior: 0,
         fecha_ultima_lectura: null,
-        mes_periodo_anterior: null
+        period_id_anterior: null
       };
       await cargarMedidores();
     }
@@ -159,7 +166,7 @@ watch(() => props.open, async (newVal, oldVal) => {
         ultimaLecturaInfo.value = {
           lectura_anterior: 0,
           fecha_ultima_lectura: null,
-          mes_periodo_anterior: null
+          period_id_anterior: null
         };
         form.lectura_actual = '';
       }
@@ -207,14 +214,14 @@ const obtenerUltimaLectura = async (medidorId: number) => {
     ultimaLecturaInfo.value = {
       lectura_anterior: lecturaAnterior,
       fecha_ultima_lectura: response.data.fecha_ultima_lectura,
-      mes_periodo_anterior: response.data.mes_periodo_anterior
+      period_id_anterior: response.data.period_id_anterior
     };
   } catch (error) {
     console.error('Error obteniendo última lectura:', error);
     ultimaLecturaInfo.value = {
       lectura_anterior: 0,
       fecha_ultima_lectura: null,
-      mes_periodo_anterior: null
+      period_id_anterior: null
     };
     showError('No se pudo obtener la última lectura');
   } finally {
@@ -247,14 +254,14 @@ const formatFecha = (fecha: string): string => {
 const closeDialog = () => {
   // Limpiar el formulario
   form.reset();
-  
+
   // Limpiar información de última lectura
   ultimaLecturaInfo.value = null;
-  
-  // Restablecer fechas por defecto
+
+  // Restablecer valores por defecto
   form.fecha_lectura = new Date().toISOString().split('T')[0];
-  form.mes_periodo = new Date().toISOString().slice(0, 7);
-  
+  form.period_id = props.periodoActivo?.id || null;
+
   // Cerrar el diálogo
   emit('update:open', false);
   emit('close');
@@ -268,6 +275,11 @@ const submit = () => {
 
   if (!form.medidor_id) {
     showError('Debes seleccionar un medidor');
+    return;
+  }
+
+  if (!props.periodoActivo) {
+    showError('No hay un período activo. Contacta al administrador.');
     return;
   }
 
@@ -472,7 +484,7 @@ const submit = () => {
               :readonly="isEditing"
               :max="new Date().toISOString().split('T')[0]"
               class="h-11 border-2"
-              :class="{ 
+              :class="{
                 'border-destructive': form.errors.fecha_lectura,
                 'bg-muted cursor-not-allowed': isEditing
               }"
@@ -487,26 +499,27 @@ const submit = () => {
           </div>
 
           <div class="space-y-2">
-            <Label for="mes_periodo" class="text-base font-semibold">
+            <Label class="text-base font-semibold">
               Período de Facturación <span class="text-destructive">*</span>
             </Label>
-            <Input
-              id="mes_periodo"
-              v-model="form.mes_periodo"
-              type="month"
-              :readonly="isEditing"
-              class="h-11 border-2"
-              :class="{ 
-                'border-destructive': form.errors.mes_periodo,
-                'bg-muted cursor-not-allowed': isEditing
-              }"
-              required
-            />
+            <div v-if="props.periodoActivo" class="h-11 px-4 py-2 bg-muted border-2 border-border rounded-lg flex items-center">
+              <div class="flex items-center gap-2">
+                <Calendar class="h-4 w-4 text-muted-foreground" />
+                <span class="text-base font-medium">{{ props.periodoActivo.nombre }}</span>
+                <Badge variant="secondary" class="ml-2">Activo</Badge>
+              </div>
+            </div>
+            <div v-else class="h-11 px-4 py-2 bg-red-50 border-2 border-red-200 rounded-lg flex items-center">
+              <div class="flex items-center gap-2 text-red-600">
+                <AlertCircle class="h-4 w-4" />
+                <span class="text-base">No hay período activo</span>
+              </div>
+            </div>
             <p class="text-xs text-muted-foreground">
-              {{ formatPeriodo(form.mes_periodo) }}
+              Las lecturas se registran automáticamente en el período activo actual
             </p>
-            <p v-if="form.errors.mes_periodo" class="text-sm text-destructive">
-              {{ form.errors.mes_periodo }}
+            <p v-if="form.errors.period_id" class="text-sm text-destructive">
+              {{ form.errors.period_id }}
             </p>
           </div>
         </div>
@@ -535,11 +548,11 @@ const submit = () => {
           <Button type="button" variant="outline" @click="closeDialog" size="lg">
             {{ isEditing ? 'Cerrar' : 'Cancelar' }}
           </Button>
-          <Button 
+          <Button
             v-if="!isEditing"
-            type="submit" 
+            type="submit"
             size="lg"
-            :disabled="form.processing || tieneConsumoNegativo || loadingUltimaLectura || !form.lectura_actual"
+            :disabled="form.processing || tieneConsumoNegativo || loadingUltimaLectura || !form.lectura_actual || !props.periodoActivo"
           >
             <Gauge class="h-4 w-4 mr-2" />
             {{ form.processing ? 'Registrando...' : 'Registrar Lectura' }}

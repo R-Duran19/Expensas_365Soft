@@ -73,7 +73,13 @@ class PropertyExpense extends Model
 
     public function details(): HasMany
     {
-        return $this->hasMany(ExpenseDetail::class);
+        return $this->hasMany(PropertyExpenseDetail::class);
+    }
+
+    // Mantener la relación anterior si existe
+    public function expenseDetails(): HasMany
+    {
+        return $this->hasMany(PropertyExpenseDetail::class);
     }
 
     public function paymentAllocations(): HasMany

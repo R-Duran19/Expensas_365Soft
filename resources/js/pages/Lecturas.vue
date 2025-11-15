@@ -47,7 +47,8 @@ interface Lectura {
   lectura_anterior: number | null;
   consumo: number;
   fecha_lectura: string;
-  mes_periodo: string;
+  period_id: number | null;
+  periodo_formateado: string | null;
   observaciones: string | null;
   medidor: Medidor;
   usuario: Usuario;
@@ -64,20 +65,36 @@ interface PaginatedLecturas {
 }
 
 interface Filtros {
-  periodo?: string;
+  period_id?: number;
   medidor_id?: number;
   fecha_desde?: string;
   fecha_hasta?: string;
 }
 
-interface Props {
-  lecturas: PaginatedLecturas;
-  periodos: string[];
-  filtros: Filtros;
-  tieneFiltros?: boolean; // NUEVO
+interface Periodo {
+  id: number;
+  nombre: string;
+  mes_periodo: string;
 }
 
-defineProps<Props>();
+interface PeriodoActivo {
+  id: number;
+  nombre: string;
+  mes_periodo: string;
+}
+
+interface Props {
+  lecturas: PaginatedLecturas;
+  periodos: Periodo[];
+  filtros: Filtros;
+  tieneFiltros?: boolean;
+  periodoActivo?: PeriodoActivo | null;
+}
+
+withDefaults(defineProps<Props>(), {
+  tieneFiltros: false,
+  periodoActivo: null
+});
 
 // ==========================================
 // BREADCRUMBS
@@ -111,9 +128,10 @@ const closeLecturaDialog = () => {
     <Head title="Gestión de Lecturas" />
     
     <div class="space-y-6">
-      <LecturasHeader 
+      <LecturasHeader
         :periodos="periodos"
         :filtros="filtros"
+        :periodoActivo="periodoActivo"
         @create-lectura="openLecturaDialog()"
       />
 
@@ -123,9 +141,10 @@ const closeLecturaDialog = () => {
         @edit-lectura="openLecturaDialog"
       />
 
-      <LecturaFormDialog 
+      <LecturaFormDialog
         v-model:open="showLecturaDialog"
         :lectura="selectedLectura"
+        :periodoActivo="periodoActivo"
         @close="closeLecturaDialog"
       />
     </div>
