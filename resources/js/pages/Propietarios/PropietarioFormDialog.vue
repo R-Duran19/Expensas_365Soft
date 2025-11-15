@@ -308,7 +308,15 @@ const cargarPropiedadesExistentes = () => {
 const cargarPropiedadesDisponibles = async () => {
   try {
     cargandoPropiedades.value = true;
-    const response = await axios.get('/propietarios/propiedades-disponibles');
+
+    // Usar API diferente para edición vs creación
+    let url = '/propietarios/propiedades-disponibles';
+    if (props.propietario) {
+      // En modo edición, incluir también las propiedades actuales del propietario
+      url = `/propietarios/${props.propietario.id}/propiedades-disponibles-edicion`;
+    }
+
+    const response = await axios.get(url);
     propiedadesDisponibles.value = response.data.propiedades;
   } catch (error) {
     showError('Error al cargar las propiedades disponibles');
@@ -329,12 +337,16 @@ watch(() => props.open, (newVal) => {
       form.email = props.propietario.email || '';
       form.direccion_externa = props.propietario.direccion_externa || '';
       form.fecha_registro = props.propietario.fecha_registro;
-      
+
       cargarPropiedadesExistentes();
+      // Cargar propiedades disponibles para modo edición
+      cargarPropiedadesDisponibles();
     } else {
       // Modo creación
       form.reset();
       propiedadesSeleccionadas.value = [];
+      // Resetear propiedades disponibles para creación
+      propiedadesDisponibles.value = [];
     }
   }
 });

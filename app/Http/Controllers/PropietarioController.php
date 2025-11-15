@@ -166,6 +166,31 @@ class PropietarioController extends Controller
     {
         $propiedades = Propiedad::with('tipoPropiedad')
             ->activas()
+            ->whereDoesntHave('propietarios', function ($query) {
+                $query->whereNull('fecha_fin');
+            })
+            ->orderBy('codigo')
+            ->get();
+
+        return response()->json([
+            'propiedades' => $propiedades
+        ]);
+    }
+
+    public function getPropiedadesDisponiblesParaEdicion(Propietario $propietario)
+    {
+        // Obtener propiedades activas que no tienen propietario O que pertenecen a este propietario
+        $propiedades = Propiedad::with('tipoPropiedad')
+            ->activas()
+            ->where(function ($query) use ($propietario) {
+                $query->whereDoesntHave('propietarios', function ($subQuery) {
+                    $subQuery->whereNull('fecha_fin');
+                })
+                ->orWhereHas('propietarios', function ($subQuery) use ($propietario) {
+                    $subQuery->where('propietario_id', $propietario->id)
+                            ->whereNull('fecha_fin');
+                });
+            })
             ->orderBy('codigo')
             ->get();
 

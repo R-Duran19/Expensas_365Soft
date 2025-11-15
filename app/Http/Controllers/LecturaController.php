@@ -362,7 +362,7 @@ class LecturaController extends Controller
             'period_id' => 'required|exists:expense_periods,id',
             'lecturas' => 'required|array|min:1',
             'lecturas.*.medidor_id' => 'required|exists:medidores,id',
-            'lecturas.*.lectura_actual' => 'required|integer|min:0',
+            'lecturas.*.lectura_actual' => 'required|numeric|min:0',
             'lecturas.*.observaciones' => 'nullable|string|max:1000'
         ]);
 

@@ -10,6 +10,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('propietarios', [PropietarioController::class, 'index'])->name('propietarios.index');
     
     Route::get('propietarios/propiedades-disponibles', [PropietarioController::class, 'getPropiedadesDisponibles'])->name('propietarios.propiedades-disponibles');
+    Route::get('propietarios/{propietario}/propiedades-disponibles-edicion', [PropietarioController::class, 'getPropiedadesDisponiblesParaEdicion'])->name('propietarios.propiedades-disponibles-edicion');
 
     Route::post('propietarios', [PropietarioController::class, 'store'])->name('propietarios.store');
     Route::put('propietarios/{propietario}', [PropietarioController::class, 'update'])->name('propietarios.update');

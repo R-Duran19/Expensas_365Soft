@@ -202,15 +202,24 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
             'propietario',
             'inquilino',
             'paymentAllocations.payment',
-            'details.propiedad'
+            'details.propiedad',
+            'waterFactor'
         ]);
 
         // Obtener lecturas de agua si aplica
         $waterReadings = [];
+        $currentLectura = null;
+
         if ($propertyExpense->propiedad->medidor) {
+            // Obtener lectura específica del período de la expensa
+            $currentLectura = Lectura::where('medidor_id', $propertyExpense->propiedad->medidor->id)
+                ->where('period_id', $propertyExpense->expense_period_id)
+                ->first();
+
+            // Obtener lecturas históricas para mostrar
             $lecturas = $propertyExpense->propiedad->medidor->lecturas()
                 ->orderBy('fecha_lectura', 'desc')
-                ->limit(2)
+                ->limit(3)
                 ->get();
 
             $waterReadings = $lecturas->map(function ($lectura) {
@@ -219,6 +228,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                     'lectura' => $lectura->lectura_actual,
                     'consumo' => $lectura->consumo,
                     'periodo' => $lectura->periodo_formateado,
+                    'es_actual_periodo' => $lectura->period_id === $propertyExpense->expense_period_id,
                 ];
             });
         }
@@ -236,6 +246,11 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                 'propietario' => $propertyExpense->propietario?->nombre_completo,
                 'inquilino' => $propertyExpense->inquilino?->nombre_completo,
                 'facturar_a' => $propertyExpense->facturar_a,
+                'water_factors' => $propertyExpense->waterFactor ? [
+                    'factor_comercial' => $propertyExpense->waterFactor->factor_comercial,
+                    'factor_domiciliario' => $propertyExpense->waterFactor->factor_domiciliario,
+                    'resumen' => $propertyExpense->waterFactor->resumen_calculo,
+                ] : null,
                 'desglose' => [
                     'base_amount' => $propertyExpense->base_amount,
                     'water_amount' => $propertyExpense->water_amount,
@@ -257,6 +272,14 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                 'notes' => $propertyExpense->notes,
                 'created_at' => $propertyExpense->created_at->format('d/m/Y H:i'),
                 'water_readings' => $waterReadings,
+                'current_lectura' => $currentLectura ? [
+                    'id' => $currentLectura->id,
+                    'lectura_actual' => $currentLectura->lectura_actual,
+                    'lectura_anterior' => $currentLectura->lectura_anterior,
+                    'consumo' => $currentLectura->consumo,
+                    'fecha_lectura' => $currentLectura->fecha_lectura->format('d/m/Y'),
+                    'periodo' => $currentLectura->periodo_formateado,
+                ] : null,
                 'payment_allocations' => $propertyExpense->paymentAllocations->map(function ($allocation) {
                     return [
                         'id' => $allocation->id,
@@ -270,7 +293,10 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                         'created_at' => $allocation->created_at->format('d/m/Y H:i'),
                     ];
                 }),
-                'property_details' => $propertyExpense->details->map(function ($detail) {
+                'property_details' => $propertyExpense->details->map(function ($detail) use ($currentLectura) {
+                    // Determinar si es tipo comercial para obtener el factor correcto
+                    $esComercial = in_array(strtolower($detail->tipo_propiedad), ['comercial', 'local', 'oficina']);
+
                     return [
                         'id' => $detail->id,
                         'propiedad' => [
@@ -281,7 +307,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                         ],
                         'factores' => [
                             'factor_expensas' => $detail->factor_expensas,
-                            'factor_agua' => $detail->factor_agua,
+                            'factor_agua' => $detail->factor_agua, // Ya viene con 6 decimales
                             'factor_calculado' => $detail->factor_calculado,
                         ],
                         'montos' => [
@@ -291,11 +317,16 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                         ],
                         'agua' => [
                             'medidor_codigo' => $detail->water_medidor_codigo,
-                            'consumption_m3' => $detail->water_consumption_m3,
-                            'previous_reading' => $detail->water_previous_reading,
-                            'current_reading' => $detail->water_current_reading,
+                            // Priorizar datos de lectura actual sobre almacenados para mayor precisión
+                            'consumption_m3' => $currentLectura ? $currentLectura->consumo : $detail->water_consumption_m3,
+                            'previous_reading' => $currentLectura ? $currentLectura->lectura_anterior : $detail->water_previous_reading,
+                            'current_reading' => $currentLectura ? $currentLectura->lectura_actual : $detail->water_current_reading,
                             'has_water_meter' => $detail->hasWaterMeter(),
-                            'readings_summary' => $detail->water_readings_summary,
+                            'readings_summary' => $currentLectura
+                                ? "Anterior: {$currentLectura->lectura_anterior} | Actual: {$currentLectura->lectura_actual} | Consumo: {$currentLectura->consumo} m³"
+                                : $detail->water_readings_summary,
+                            'es_comercial' => $esComercial,
+                            'factor_aplicado' => $detail->factor_agua,
                         ],
                     ];
                 }),

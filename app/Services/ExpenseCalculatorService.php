@@ -11,6 +11,7 @@ use App\Models\TipoPropiedad;
 use App\Models\Medidor;
 use App\Models\Lectura;
 use App\Models\FactorCalculo;
+use App\Models\WaterFactor;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -48,9 +49,10 @@ class ExpenseCalculatorService
 
             $results['total_properties'] = $propietariosConPropiedades->count();
 
-            // Calcular factores de agua
+            // Calcular factores de agua y obtener el water_factor_id
             $waterFactors = $this->calculateWaterFactors($period);
             $allFactors = array_merge($factors, $waterFactors);
+            $waterFactorId = $waterFactors['water_factor_id'] ?? null;
 
             // Generar expensa consolidada para cada propietario activo
             foreach ($propietariosConPropiedades as $propietarioId) {
@@ -70,6 +72,7 @@ class ExpenseCalculatorService
                 if ($consolidatedExpense['success']) {
                     // Crear la expensa consolidada
                     $expense = PropertyExpense::create([
+                        'water_factor_id' => $waterFactorId,
                         'expense_period_id' => $period->id,
                         'propiedad_id' => $consolidatedExpense['primary_property_id'],
                         'propietario_id' => $consolidatedExpense['propietario_id'],
@@ -168,11 +171,11 @@ class ExpenseCalculatorService
                 ];
             }
 
-            // Calcular totales consolidados
-            $totalBaseAmount = 0;
-            $totalWaterAmount = 0;
-            $hasWaterReadings = false;
+            // Variables para acumular los totales de los detalles ya redondeados
             $propertiesDetails = [];
+            $totalBaseAmountFromDetails = 0;
+            $totalWaterAmountFromDetails = 0;
+            $hasWaterReadings = false;
 
             foreach ($propiedades as $propiedad) {
                 // Obtener tipo de propiedad y factor
@@ -187,14 +190,13 @@ class ExpenseCalculatorService
 
                 $factor = $factorCalculo ? $factorCalculo->factor : ($esComercial ? ($factors['factor_comercial'] ?? 3.5) : ($factors['factor_departamento'] ?? 2.1));
 
-                // Calcular monto base
+                // Calcular monto base y redondearlo por propiedad
                 $baseAmount = $propiedad->metros_cuadrados * $factor;
-                $totalBaseAmount += $baseAmount;
+                $baseAmountRedondeado = $this->roundToNearestInteger($baseAmount);
 
                 // Calcular consumo de agua (detallado)
                 $waterData = $this->calculateDetailedWaterAmount($propiedad->id, $period, $factors);
-                $waterAmount = $waterData['amount'];
-                $totalWaterAmount += $waterAmount;
+                $waterAmount = $waterData['amount']; // Ya viene redondeado del método
 
                 if ($waterAmount > 0) {
                     $hasWaterReadings = true;
@@ -203,6 +205,19 @@ class ExpenseCalculatorService
                 // Obtener medidor para detalles
                 $medidor = Medidor::where('propiedad_id', $propiedad->id)->first();
                 $waterFactor = $esComercial ? ($factors['factor_agua_comercial'] ?? 0) : ($factors['factor_agua_domiciliario'] ?? 0);
+
+                // Calcular total para esta propiedad
+                $totalAmountRedondeado = $baseAmountRedondeado + $waterAmount;
+
+                // Acumular totales desde los detalles ya redondeados
+                $totalBaseAmountFromDetails += $baseAmountRedondeado;
+                $totalWaterAmountFromDetails += $waterAmount;
+
+                // Log detallado por propiedad
+                Log::debug("Propiedad {$propiedad->codigo} (ID: {$propiedad->id}):");
+                Log::debug("  Base: {$baseAmount} → {$baseAmountRedondeado} BS");
+                Log::debug("  Agua: {$waterAmount} BS");
+                Log::debug("  Total propiedad: {$totalAmountRedondeado} BS");
 
                 $propertiesDetails[] = [
                     'propiedad_id' => $propiedad->id,
@@ -213,9 +228,9 @@ class ExpenseCalculatorService
                     'factor_expensas' => $factor, // Factor para expensas comunes
                     'factor_agua' => $waterFactor, // Factor para agua
                     'factor_calculado' => $factor, // Factor real utilizado
-                    'base_amount' => $baseAmount,
-                    'water_amount' => $waterAmount,
-                    'total_amount' => $baseAmount + $waterAmount,
+                    'base_amount' => $baseAmountRedondeado,
+                    'water_amount' => $waterAmount, // Ya viene redondeado del método calculateDetailedWaterAmount
+                    'total_amount' => $totalAmountRedondeado,
                     'water_consumption_m3' => $waterData['consumption_m3'],
                     'water_previous_reading' => $waterData['previous_reading'],
                     'water_current_reading' => $waterData['current_reading'],
@@ -226,13 +241,20 @@ class ExpenseCalculatorService
             // Calcular deuda anterior
             $previousDebt = $this->calculatePreviousDebt($propietarioId, $period);
 
-            // Calcular total
+            // Usar los totales exactos de los detalles (ya redondeados)
+            $totalBaseAmount = $totalBaseAmountFromDetails;
+            $totalWaterAmount = $totalWaterAmountFromDetails;
+
+            // Calcular total con montos ya redondeados de detalles
             $totalAmount = $totalBaseAmount + $totalWaterAmount + $previousDebt;
 
-            // Redondear según reglas
-            $totalBaseAmount = $this->roundToNearestInteger($totalBaseAmount);
-            $totalWaterAmount = $this->roundToNearestInteger($totalWaterAmount);
-            $totalAmount = $this->roundToNearestInteger($totalAmount);
+            // Logs para verificar consistencia
+            Log::info("Resumen cálculo para propietario {$propietarioId}:");
+            Log::info("  Base (desde detalles): {$totalBaseAmount} BS");
+            Log::info("  Agua (desde detalles): {$totalWaterAmount} BS");
+            Log::info("  Deuda anterior: {$previousDebt} BS");
+            Log::info("  Total final: {$totalAmount} BS");
+            Log::info("  Propiedades procesadas: " . count($propertiesDetails));
 
             // Crear resumen de propiedades
             $propertiesSummary = $propiedades->pluck('codigo')->implode(', ');
@@ -271,6 +293,7 @@ class ExpenseCalculatorService
     {
         foreach ($propertiesDetails as $detail) {
             PropertyExpenseDetail::create([
+                'water_factor_id' => $expense->water_factor_id,
                 'property_expense_id' => $expense->id,
                 'propiedad_id' => $detail['propiedad_id'],
                 'propiedad_codigo' => $detail['codigo'],
@@ -371,13 +394,13 @@ class ExpenseCalculatorService
                 }
             }
 
-            // Si no hay lectura anterior, usar 0 como base
-            if ($previousReading === null) {
-                $previousReading = 0;
-                Log::info("No se encontró lectura anterior para medidor {$medidor->id}, usando 0 como base");
-            }
+            // Usar el consumo ya calculado en la tabla lecturas (columna virtual)
+            // Esto evita recálculos y asegura consistencia con los datos registrados
+            $consumption = $currentLectura->consumo;
 
-            $consumption = $currentLectura->lectura_actual - $previousReading;
+            // Obtener lecturas para mostrar en frontend (sin recalcular consumo)
+            $currentReading = $currentLectura->lectura_actual;
+            $previousReading = $currentLectura->lectura_anterior ?? 0;
 
             // Validar que el consumo no sea negativo
             if ($consumption < 0) {
@@ -403,19 +426,23 @@ class ExpenseCalculatorService
                     'medidor_codigo' => $medidor->numero_medidor,
                     'consumption_m3' => $consumption,
                     'previous_reading' => $previousReading,
-                    'current_reading' => $currentLectura->lectura_actual,
+                    'current_reading' => $currentReading,
                 ];
             }
 
             $amount = $consumption * $factor;
 
-            Log::info("Agua calculada para propiedad {$propiedadId}: {$consumption} m³ × {$factor} = {$amount} BS");
+            // Aplicar redondeo al monto de agua
+            $amountRedondeado = $this->roundToNearestInteger($amount);
+
+            Log::info("Agua calculada para propiedad {$propiedadId}: {$consumption} m³ × {$factor} = {$amount} BS → Redondeado: {$amountRedondeado} BS");
 
             return [
-                'amount' => $amount,
+                'amount' => $amountRedondeado,
+                'amount_raw' => $amount, // Valor sin redondear para debugging
                 'consumption_m3' => $consumption,
                 'previous_reading' => $previousReading,
-                'current_reading' => $currentLectura->lectura_actual,
+                'current_reading' => $currentReading,
                 'medidor_codigo' => $medidor->numero_medidor,
                 'requiere_medidor' => true,
                 'factor_aplicado' => $factor,
@@ -485,7 +512,8 @@ class ExpenseCalculatorService
                 }
             }
 
-            $consumption = $currentLectura->lectura_actual - $previousReading;
+            // Usar el consumo ya calculado en la tabla lecturas (columna virtual)
+            $consumption = $currentLectura->consumo;
             if ($consumption <= 0) {
                 return 0;
             }
@@ -509,50 +537,79 @@ class ExpenseCalculatorService
     }
 
     /**
-     * Calcular factores de agua desde facturas de medidores principales
+     * Calcular y guardar factores de agua desde facturas de medidores principales
      */
     private function calculateWaterFactors(ExpensePeriod $period): array
     {
-        $factors = [
-            'factor_agua_comercial' => 0,
-            'factor_agua_domiciliario' => 0
-        ];
-
         try {
             $periodoString = $period->year . '-' . str_pad($period->month, 2, '0', STR_PAD_LEFT);
 
+            // Buscar factores existentes
+            $waterFactor = WaterFactor::where('expense_period_id', $period->id)->first();
+
+            if ($waterFactor && $waterFactor->hasValidFactors()) {
+                Log::info("Usando factores existentes para período {$periodoString}");
+                return [
+                    'factor_agua_comercial' => $waterFactor->factor_comercial,
+                    'factor_agua_domiciliario' => $waterFactor->factor_domiciliario,
+                    'water_factor_id' => $waterFactor->id
+                ];
+            }
+
+            // Calcular factores desde facturas de medidores principales
             $facturas = DB::table('facturas_medidores_principales')
                 ->where('mes_periodo', $periodoString)
                 ->get();
 
-            if ($facturas->isNotEmpty()) {
-                $totalConsumoComercial = $facturas->where('tipo', 'comercial')->sum('consumo_m3');
-                $totalMontoComercial = $facturas->where('tipo', 'comercial')->sum('importe_bs');
-
-                $totalConsumoDomiciliario = $facturas->where('tipo', 'domiciliario')->sum('consumo_m3');
-                $totalMontoDomiciliario = $facturas->where('tipo', 'domiciliario')->sum('importe_bs');
-
-                if ($totalConsumoComercial > 0) {
-                    $factors['factor_agua_comercial'] = $totalMontoComercial / $totalConsumoComercial;
-                    Log::info("Factor comercial calculado: {$factors['factor_agua_comercial']} (Monto: {$totalMontoComercial} / Consumo: {$totalConsumoComercial})");
-                } else {
-                    Log::warning("No hay consumo comercial para el período {$periodoString}");
-                }
-
-                if ($totalConsumoDomiciliario > 0) {
-                    $factors['factor_agua_domiciliario'] = $totalMontoDomiciliario / $totalConsumoDomiciliario;
-                    Log::info("Factor domiciliario calculado: {$factors['factor_agua_domiciliario']} (Monto: {$totalMontoDomiciliario} / Consumo: {$totalConsumoDomiciliario})");
-                } else {
-                    Log::warning("No hay consumo domiciliario para el período {$periodoString}");
-                }
-            } else {
+            if ($facturas->isEmpty()) {
                 Log::warning("No hay facturas de medidores principales para el período {$periodoString}");
+                return [
+                    'factor_agua_comercial' => 0,
+                    'factor_agua_domiciliario' => 0,
+                    'water_factor_id' => null
+                ];
             }
-        } catch (\Exception $e) {
-            Log::error("Error calculando factores de agua: " . $e->getMessage());
-        }
 
-        return $factors;
+            $totalConsumoComercial = $facturas->where('tipo', 'comercial')->sum('consumo_m3');
+            $totalMontoComercial = $facturas->where('tipo', 'comercial')->sum('importe_bs');
+
+            $totalConsumoDomiciliario = $facturas->where('tipo', 'domiciliario')->sum('consumo_m3');
+            $totalMontoDomiciliario = $facturas->where('tipo', 'domiciliario')->sum('importe_bs');
+
+            $factorComercial = $totalConsumoComercial > 0 ? $totalMontoComercial / $totalConsumoComercial : 0;
+            $factorDomiciliario = $totalConsumoDomiciliario > 0 ? $totalMontoDomiciliario / $totalConsumoDomiciliario : 0;
+
+            // Guardar factores en la base de datos
+            $waterFactor = WaterFactor::create([
+                'expense_period_id' => $period->id,
+                'factor_comercial' => $factorComercial,
+                'factor_domiciliario' => $factorDomiciliario,
+                'total_consumo_comercial' => $totalConsumoComercial,
+                'total_importe_comercial' => $totalMontoComercial,
+                'total_consumo_domiciliario' => $totalConsumoDomiciliario,
+                'total_importe_domiciliario' => $totalMontoDomiciliario,
+                'usuario_calculo_id' => auth()->id(),
+                'notas' => "Calculado automáticamente desde facturas de medidores principales - {$periodoString}",
+            ]);
+
+            Log::info("Factores guardados para período {$periodoString}:");
+            Log::info("  Comercial: {$factorComercial} (Monto: {$totalMontoComercial} / Consumo: {$totalConsumoComercial})");
+            Log::info("  Domiciliario: {$factorDomiciliario} (Monto: {$totalMontoDomiciliario} / Consumo: {$totalConsumoDomiciliario})");
+
+            return [
+                'factor_agua_comercial' => $factorComercial,
+                'factor_agua_domiciliario' => $factorDomiciliario,
+                'water_factor_id' => $waterFactor->id
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("Error calculando factores de agua para período {$period->year}-{$period->month}: " . $e->getMessage());
+            return [
+                'factor_agua_comercial' => 0,
+                'factor_agua_domiciliario' => 0,
+                'water_factor_id' => null
+            ];
+        }
     }
 
     /**

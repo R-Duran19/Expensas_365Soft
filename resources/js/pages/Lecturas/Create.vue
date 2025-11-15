@@ -429,7 +429,7 @@ const guardarLecturas = async () => {
                                         </TableCell>
                                         <TableCell>
                                             <Input v-model.number="lecturas.get(medidor.id)!.lectura_actual"
-                                                type="number" min="0" step="1" placeholder="0"
+                                                type="number" min="0" step="0.001" placeholder="0.000"
                                                 @input="validarLectura(medidor.id)"
                                                 :class="{ 'border-red-500': !lecturas.get(medidor.id)?.valida }" />
                                             <p v-if="lecturas.get(medidor.id)?.error" class="text-xs mt-1"

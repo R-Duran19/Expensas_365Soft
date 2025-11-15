@@ -12,6 +12,7 @@ class PropertyExpense extends Model
     use HasFactory;
 
     protected $fillable = [
+        'water_factor_id',
         'expense_period_id',
         'propiedad_id',
         'propietario_id',
@@ -35,22 +36,27 @@ class PropertyExpense extends Model
     ];
 
     protected $casts = [
-        'base_amount' => 'decimal:2',
-        'water_amount' => 'decimal:2',
-        'other_amount' => 'decimal:2',
-        'previous_debt' => 'decimal:2',
-        'total_amount' => 'decimal:2',
+        'base_amount' => 'integer',
+        'water_amount' => 'integer',
+        'other_amount' => 'integer',
+        'previous_debt' => 'integer',
+        'total_amount' => 'integer',
         'paid_amount' => 'decimal:2',
-        'balance' => 'decimal:2',
+        'balance' => 'integer',
         'water_previous_reading' => 'decimal:2',
         'water_current_reading' => 'decimal:2',
         'water_consumption' => 'decimal:2',
-        'water_factor' => 'decimal:4',
+        'water_factor' => 'decimal:6',
         'due_date' => 'date',
         'paid_at' => 'datetime',
     ];
 
     // Relaciones
+    public function waterFactor(): BelongsTo
+    {
+        return $this->belongsTo(WaterFactor::class);
+    }
+
     public function expensePeriod(): BelongsTo
     {
         return $this->belongsTo(ExpensePeriod::class);

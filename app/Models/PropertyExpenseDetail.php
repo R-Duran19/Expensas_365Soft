@@ -10,6 +10,7 @@ class PropertyExpenseDetail extends Model
     protected $table = 'property_expense_details';
 
     protected $fillable = [
+        'water_factor_id',
         'property_expense_id',
         'propiedad_id',
         'propiedad_codigo',
@@ -31,15 +32,23 @@ class PropertyExpenseDetail extends Model
     protected $casts = [
         'metros_cuadrados' => 'decimal:2',
         'factor_expensas' => 'decimal:2',
-        'factor_agua' => 'decimal:2',
+        'factor_agua' => 'decimal:6',
         'factor_calculado' => 'decimal:2',
-        'base_amount' => 'decimal:2',
-        'water_amount' => 'decimal:2',
-        'total_amount' => 'decimal:2',
-        'water_consumption_m3' => 'integer',
+        'base_amount' => 'integer',
+        'water_amount' => 'integer',
+        'total_amount' => 'integer',
+        'water_consumption_m3' => 'decimal:3',
         'water_previous_reading' => 'decimal:2',
         'water_current_reading' => 'decimal:2',
     ];
+
+    /**
+     * Relación con el factor de agua
+     */
+    public function waterFactor(): BelongsTo
+    {
+        return $this->belongsTo(WaterFactor::class);
+    }
 
     /**
      * Relación con la expensa consolidada
