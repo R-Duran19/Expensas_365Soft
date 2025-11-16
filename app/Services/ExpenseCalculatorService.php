@@ -632,7 +632,22 @@ class ExpenseCalculatorService
                 ->where('status', '!=', 'paid')
                 ->get();
 
-            return $previousExpenses->sum('balance');
+            // CORRECCIÓN: Sumar solo los montos reales del período (base + agua + otros)
+            // Esto evita el doble conteo porque total_amount y balance ya incluyen deudas anteriores acumuladas
+            $totalPreviousDebt = $previousExpenses->sum(function ($expense) {
+                return $expense->base_amount + $expense->water_amount + $expense->other_amount;
+            });
+
+            // Log informativo para verificar el cálculo
+            Log::info("Cálculo de deuda anterior para propietario {$propietarioId}:");
+            Log::info("  Expensas pendientes encontradas: {$previousExpenses->count()}");
+            foreach ($previousExpenses as $expense) {
+                $periodDebt = $expense->base_amount + $expense->water_amount + $expense->other_amount;
+                Log::info("  Periodo {$expense->expensePeriod->year}-{$expense->expensePeriod->month}: base={$expense->base_amount}, agua={$expense->water_amount}, otros={$expense->other_amount}, deuda_periodo={$periodDebt}");
+            }
+            Log::info("  Deuda anterior total: {$totalPreviousDebt} BS");
+
+            return $totalPreviousDebt;
         } catch (\Exception $e) {
             Log::error("Error calculando deuda anterior para propietario {$propietarioId}: " . $e->getMessage());
             return 0;
