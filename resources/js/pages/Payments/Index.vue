@@ -1,18 +1,19 @@
 <template>
   <AppLayout>
-  <div class="p-6 space-y-6">
+  <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
     <!-- Header -->
-    <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-semibold text-gray-900">Pagos Registrados</h1>
-      <Link href="/pagos/seleccionar-propietario" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <h1 class="text-xl sm:text-2xl font-semibold text-gray-900">Pagos Registrados</h1>
+      <Link href="/pagos/seleccionar-propietario" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-center sm:text-left">
         <i class="fas fa-plus mr-2"></i>
-        Registrar Pago
+        <span class="hidden sm:inline">Registrar Pago</span>
+        <span class="sm:hidden">Registrar</span>
       </Link>
     </div>
 
     <!-- Filtros -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div class="bg-white rounded-lg shadow p-3 sm:p-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Búsqueda</label>
           <input
@@ -82,59 +83,59 @@
       </div>
     </div>
 
-    <!-- Tabla de Pagos -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- Tabla de Pagos - Desktop -->
+    <div class="bg-white rounded-lg shadow overflow-hidden hidden lg:block">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Recibo
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Fecha
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Propietario
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Propiedad
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Monto
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">
                 Tipo Pago
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="payment in payments.data" :key="payment.id" class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {{ payment.receipt_number }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ formatDate(payment.payment_date) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                 {{ payment.propietario?.nombre_completo || 'N/A' }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                 {{ payment.propiedad?.codigo || 'N/A' }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {{ formatCurrency(payment.amount) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 hidden xl:table-cell">
                 {{ payment.payment_type?.name || 'N/A' }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-4 py-4 whitespace-nowrap">
                 <span
                   :class="[
                     'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
@@ -146,14 +147,14 @@
                   {{ payment.status === 'active' ? 'Activo' : 'Anulado' }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">            
-               <div class="flex space-x-2 items-center">
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-center">
+               <div class="flex justify-center space-x-2">
                 <Link
                 :href="`/pagos/${payment.id}`"
                 class="inline-flex items-center justify-center w-8 h-8 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 rounded-full transition-colors duration-200 shadow-sm"
                 title="Ver detalles del pago"
                 >
-                <EyeIcon class="w-5 h-5" /> </Link>
+                <EyeIcon class="w-4 h-4" /> </Link>
 
                  <button
                     v-if="payment.status === 'active'"
@@ -161,64 +162,159 @@
                     class="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-800 rounded-full transition-colors duration-200 shadow-sm"
                     title="Anular pago"
                    >
-                  <XIcon class="w-5 h-5" /> </button>
+                  <XIcon class="w-4 h-4" /> </button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+    </div>
 
-      <!-- Paginación -->
-      <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-        <div class="flex-1 flex justify-between sm:hidden">
-          <button
-            @click="goToPage(payments.prev_page_url)"
-            :disabled="!payments.prev_page_url"
-            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Anterior
-          </button>
-          <button
-            @click="goToPage(payments.next_page_url)"
-            :disabled="!payments.next_page_url"
-            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Siguiente
-          </button>
-        </div>
-        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p class="text-sm text-gray-700">
-              Mostrando
-              <span class="font-medium">{{ payments.from || 0 }}</span>
-              a
-              <span class="font-medium">{{ payments.to || 0 }}</span>
-              de
-              <span class="font-medium">{{ payments.total }}</span>
-              resultados
-            </p>
-          </div>
-          <div>
-            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button
-                v-for="link in paginationLinks"
-                :key="link.label"
-                @click="goToPage(link.url)"
-                :disabled="!link.url || link.active"
+    <!-- Vista Mobile - Cards -->
+    <div class="lg:hidden space-y-3">
+      <div v-if="payments.data.length === 0" class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+        <i class="fas fa-receipt text-4xl mb-3 text-gray-300"></i>
+        <p>No se encontraron pagos</p>
+      </div>
+
+      <div v-for="payment in payments.data" :key="payment.id" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+        <!-- Header del card -->
+        <div class="flex justify-between items-start mb-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="font-semibold text-gray-900">{{ payment.receipt_number }}</h3>
+              <span
                 :class="[
-                  'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
-                  link.active
-                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50',
-                  !link.url ? 'cursor-not-allowed opacity-50' : ''
+                  'px-2 py-1 text-xs font-medium rounded-full',
+                  payment.status === 'active'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
                 ]"
-                v-html="link.label"
-              />
-            </nav>
+              >
+                {{ payment.status === 'active' ? 'Activo' : 'Anulado' }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-500">{{ formatDate(payment.payment_date) }}</p>
+          </div>
+          <div class="flex space-x-1">
+            <Link
+              :href="`/pagos/${payment.id}`"
+              class="inline-flex items-center justify-center w-8 h-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
+              title="Ver detalles"
+            >
+              <EyeIcon class="w-4 h-4" />
+            </Link>
+            <button
+              v-if="payment.status === 'active'"
+              @click="confirmCancelPayment(payment)"
+              class="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+              title="Anular pago"
+            >
+              <XIcon class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Información principal -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-600">Propietario:</span>
+            <span class="text-sm font-medium text-gray-900">{{ payment.propietario?.nombre_completo || 'N/A' }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-600">Propiedad:</span>
+            <span class="text-sm font-medium text-gray-900">{{ payment.propiedad?.codigo || 'N/A' }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-600">Monto:</span>
+            <span class="text-lg font-bold text-green-600">{{ formatCurrency(payment.amount) }}</span>
+          </div>
+          <div v-if="payment.payment_type" class="flex justify-between items-center">
+            <span class="text-sm text-gray-600">Tipo:</span>
+            <span class="text-sm text-gray-900">{{ payment.payment_type.name }}</span>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Paginación -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 px-3 py-4 sm:px-4 sm:py-3">
+      <!-- Mobile: Simple pagination -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <!-- Info -->
+        <div class="text-sm text-gray-600 text-center sm:text-left">
+          <span class="font-medium">{{ payments.from || 0 }}</span>
+          a
+          <span class="font-medium">{{ payments.to || 0 }}</span>
+          de
+          <span class="font-medium">{{ payments.total }}</span>
+          pagos
+        </div>
+
+        <!-- Mobile navigation -->
+        <div class="flex justify-center sm:hidden">
+          <div class="flex items-center space-x-2">
+            <button
+              @click="goToPage(payments.prev_page_url)"
+              :disabled="!payments.prev_page_url"
+              class="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i class="fas fa-chevron-left mr-1"></i>
+              Anterior
+            </button>
+            <span class="text-sm text-gray-600 px-2">
+              {{ payments.current_page }} / {{ payments.last_page }}
+            </span>
+            <button
+              @click="goToPage(payments.next_page_url)"
+              :disabled="!payments.next_page_url"
+              class="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Siguiente
+              <i class="fas fa-chevron-right ml-1"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop navigation -->
+        <div class="hidden sm:flex sm:items-center sm:justify-center">
+          <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+            <button
+              @click="goToPage(payments.prev_page_url)"
+              :disabled="!payments.prev_page_url"
+              class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <!-- Page numbers -->
+            <button
+              v-for="link in paginationLinks"
+              :key="link.label"
+              @click="goToPage(link.url)"
+              :disabled="!link.url || link.active"
+              :class="[
+                'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
+                link.active
+                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50',
+                !link.url ? 'cursor-not-allowed opacity-50' : ''
+              ]"
+              v-html="link.label"
+            />
+
+            <button
+              @click="goToPage(payments.next_page_url)"
+              :disabled="!payments.next_page_url"
+              class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Modal de confirmación de anulación -->

@@ -38,8 +38,23 @@ interface Medidor {
   ultima_lectura?: Lectura;
 }
 
+interface PaginatedData<T> {
+  data: T[];
+  current_page: number;
+  from: number | null;
+  last_page: number;
+  per_page: number;
+  to: number | null;
+  total: number;
+  links: Array<{
+    url: string | null;
+    label: string;
+    active: boolean;
+  }>;
+}
+
 interface Props {
-  medidores: Medidor[];
+  medidores: PaginatedData<Medidor>;
   propiedades: Propiedad[]; // Solo propiedades que requieren medidor
 }
 
@@ -68,8 +83,9 @@ const closeMedidorDialog = () => {
     <Head title="Gestión de Medidores" />
     <div class="space-y-6">
       <MedidoresHeader @create-medidor="openMedidorDialog()" />
-      <MedidoresTable 
-        :medidores="medidores"
+      <MedidoresTable
+        :medidores="medidores.data"
+        :pagination="medidores"
         @edit-medidor="openMedidorDialog"
         @create-medidor="openMedidorDialog()"
       />

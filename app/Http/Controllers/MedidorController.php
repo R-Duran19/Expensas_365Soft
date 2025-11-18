@@ -13,8 +13,8 @@ class MedidorController extends Controller
     public function index()
     {
         $medidores = Medidor::with(['propiedad.tipoPropiedad'])
-            ->orderBy('numero_medidor')
-            ->get();
+            ->orderBy('id')
+            ->paginate(10);
 
         $propiedades = Propiedad::with('tipoPropiedad')
             ->requierenMedidor() // Solo propiedades que requieren medidor

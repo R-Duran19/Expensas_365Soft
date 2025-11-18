@@ -49,7 +49,7 @@ class PropietarioController extends Controller
         $inquilinosQuery->orderBy($orderBy, $orderDirection);
 
         // Paginar ambos
-        $perPage = $request->get('perPage', 15);
+        $perPage = $request->get('perPage', 10);
         $propietarios = $propietariosQuery->paginate($perPage)->withQueryString();
         $inquilinos = $inquilinosQuery->paginate($perPage)->withQueryString();
 
