@@ -154,4 +154,131 @@ class PropertyExpense extends Model
             ? $this->inquilino
             : $this->propietario;
     }
+
+    /**
+     * Obtener todos los pagos del propietario (para mostrar información completa)
+     */
+    public function getOwnerPayments()
+    {
+        return Payment::where('propietario_id', $this->propietario_id)
+            ->where('status', 'active')
+            ->with(['paymentType', 'allocations'])
+            ->orderBy('payment_date', 'desc')
+            ->get();
+    }
+
+    /**
+     * Obtener el total depositado por el propietario en todos sus pagos
+     */
+    public function getTotalDeposited(): float
+    {
+        return Payment::where('propietario_id', $this->propietario_id)
+            ->where('status', 'active')
+            ->sum('amount');
+    }
+
+    /**
+     * Obtener el total de saldos a favor del propietario
+     */
+    public function getTotalCredit(): float
+    {
+        $totalDeposited = $this->getTotalDeposited();
+        $totalAllocated = PaymentAllocation::whereHas('payment', function ($query) {
+            $query->where('propietario_id', $this->propietario_id)
+                  ->where('status', 'active');
+        })->sum('amount');
+
+        return max(0, $totalDeposited - $totalAllocated);
+    }
+
+    /**
+     * Obtener resumen completo de pagos para mostrar en vistas
+     */
+    public function getPaymentSummary(): array
+    {
+        $payments = $this->getOwnerPayments();
+        $totalDeposited = 0;
+        $totalAllocated = 0;
+        $paymentDetails = [];
+
+        foreach ($payments as $payment) {
+            $totalDeposited += $payment->amount;
+            $allocatedToThis = $payment->allocations()
+                ->where('property_expense_id', $this->id)
+                ->sum('amount');
+            $totalAllocated += $allocatedToThis;
+
+            $paymentDetails[] = [
+                'payment' => $payment,
+                'allocated_to_this' => $allocatedToThis,
+                'credit_from_this' => $payment->amount - $allocatedToThis,
+                'has_credit' => $payment->amount > $allocatedToThis
+            ];
+        }
+
+        return [
+            'total_deposited' => $totalDeposited,
+            'total_allocated_to_this' => $totalAllocated,
+            'total_credit' => $totalDeposited - $totalAllocated,
+            'payment_details' => $paymentDetails,
+            'has_credit' => ($totalDeposited - $totalAllocated) > 0
+        ];
+    }
+
+    /**
+     * Obtener pagos del período actual para esta expensa
+     */
+    public function getCurrentPeriodPayments()
+    {
+        return Payment::where('propietario_id', $this->propietario_id)
+            ->where('expense_period_id', $this->expense_period_id)
+            ->where('status', 'active')
+            ->with(['paymentType'])
+            ->orderBy('payment_date', 'asc')
+            ->get();
+    }
+
+    /**
+     * Obtener total pagado en el período actual
+     */
+    public function getCurrentPeriodPaidAmount(): float
+    {
+        return Payment::getTotalPaidInPeriod($this->propietario_id, $this->expense_period_id);
+    }
+
+    /**
+     * Obtener total disponible de crédito para el siguiente período
+     */
+    public function getCreditForNextPeriod(): float
+    {
+        $totalPaid = $this->getCurrentPeriodPaidAmount();
+        $creditAvailable = $totalPaid - $this->total_amount;
+
+        return max(0, $creditAvailable);
+    }
+
+    /**
+     * Actualizar estado basado en pagos del período actual
+     */
+    public function updateStatusFromCurrentPayments(): void
+    {
+        $totalPaid = $this->getCurrentPeriodPaidAmount();
+
+        if ($totalPaid >= $this->total_amount) {
+            $this->status = 'paid';
+            $this->paid_amount = $totalPaid;
+            $this->balance = 0;
+            $this->paid_at = now();
+        } elseif ($totalPaid > 0) {
+            $this->status = 'partial';
+            $this->paid_amount = $totalPaid;
+            $this->balance = $this->total_amount - $totalPaid;
+        } else {
+            $this->status = 'pending';
+            $this->paid_amount = 0;
+            $this->balance = $this->total_amount;
+        }
+
+        $this->save();
+    }
 }

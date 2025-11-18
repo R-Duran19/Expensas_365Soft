@@ -201,7 +201,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
             'propiedad.tipoPropiedad',
             'propietario',
             'inquilino',
-            'paymentAllocations.payment',
+            'paymentAllocations.payment.paymentType',
             'details.propiedad',
             'waterFactor'
         ]);
@@ -288,7 +288,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                             'id' => $allocation->payment->id,
                             'payment_date' => $allocation->payment->payment_date->format('d/m/Y'),
                             'amount' => $allocation->payment->amount,
-                            'payment_type' => $allocation->payment->payment_type->nombre,
+                            'payment_type' => $allocation->payment->paymentType?->name ?? 'No especificado',
                         ],
                         'created_at' => $allocation->created_at->format('d/m/Y H:i'),
                     ];

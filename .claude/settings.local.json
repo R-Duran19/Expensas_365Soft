@@ -5,7 +5,8 @@
       "Bash(mysql:*)",
       "Bash(ren:*)",
       "Bash(php artisan:*)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

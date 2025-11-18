@@ -11,6 +11,13 @@ Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Ruta para obtener/refresh token CSRF (para AJAX requests)
+Route::get('/csrf-token', function () {
+    return response()->json([
+        'token' => csrf_token()
+    ]);
+})->middleware('web');
+
 // Rutas protegidas por rol de administrador
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
 
@@ -35,3 +42,4 @@ require __DIR__.'/expensas.php';
 require __DIR__.'/expense-periods.php';
 require __DIR__.'/property-expenses.php';
 require __DIR__.'/facturas-medidores-principales.php';
+require __DIR__.'/payments.php';

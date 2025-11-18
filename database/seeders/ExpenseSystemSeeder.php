@@ -55,6 +55,18 @@ class ExpenseSystemSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        PaymentType::create([
+            'name' => 'Depósito Bancario',
+            'code' => 'DEPOSIT',
+            'is_active' => true,
+        ]);
+
+        PaymentType::create([
+            'name' => 'Cheque',
+            'code' => 'CHECK',
+            'is_active' => true,
+        ]);
+
         // Tipos de Transacción
         TransactionType::create([
             'name' => 'Ingreso por Expensa',

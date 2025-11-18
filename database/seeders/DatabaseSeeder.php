@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TiposPropiedadSeeder::class,
             FactoresCalculoSeeder::class,
+            PaymentTypesSeeder::class,
             ParqueosBaulerasSeeder::class,
             LocalesSeeder::class,
             OficinasSeeder::class,

@@ -118,6 +118,36 @@ const goToPage = (url: string | null) => {
     router.visit(url, { preserveState: true, preserveScroll: true });
   }
 };
+
+// ==========================================
+// FUNCIONES DE CÁLCULO DE COBROS
+// ==========================================
+const getCollectionPercentage = (period: ExpensePeriod): number => {
+  if (period.total_generated <= 0) return 0;
+  return Math.round((period.total_collected / period.total_generated) * 100);
+};
+
+const getCollectionPercentageClass = (period: ExpensePeriod): string => {
+  const percentage = getCollectionPercentage(period);
+
+  if (percentage >= 100) return 'text-green-600 font-bold';
+  if (percentage >= 80) return 'text-blue-600 font-semibold';
+  if (percentage >= 50) return 'text-yellow-600';
+  return 'text-red-600';
+};
+
+const getCollectionTooltip = (period: ExpensePeriod): string => {
+  const percentage = getCollectionPercentage(period);
+  const pending = period.total_generated - period.total_collected;
+
+  if (percentage >= 100) {
+    return `Se ha cobrado ${percentage}% del total generado. Incluye pagos excedidos que generan saldos a favor.`;
+  } else if (pending > 0) {
+    return `Se ha cobrado ${percentage}% del total. Pendiente por cobrar: ${formatCurrency(pending)}`;
+  } else {
+    return `Se ha cobrado ${percentage}% del total generado.`;
+  }
+};
 </script>
 
 <template>
@@ -145,6 +175,9 @@ const goToPage = (url: string | null) => {
                   Total Cobrado
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  % Cobro
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Propiedades
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -154,7 +187,7 @@ const goToPage = (url: string | null) => {
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="periods.data.length === 0">
-                <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   No hay períodos registrados
                 </td>
               </tr>
@@ -187,8 +220,30 @@ const goToPage = (url: string | null) => {
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900 dark:text-white">
-                    {{ formatCurrency(period.total_collected) }}
+                  <div class="text-sm">
+                    <span
+                      :class="getCollectionPercentageClass(period)"
+                      :title="getCollectionTooltip(period)"
+                    >
+                      {{ formatCurrency(period.total_collected) }}
+                    </span>
+                    <div v-if="period.total_collected > period.total_generated" class="text-xs text-orange-600 mt-1">
+                      +{{ formatCurrency(period.total_collected - period.total_generated) }}
+                      <span class="text-gray-500">(pagos excedidos)</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm">
+                    <span
+                      :class="getCollectionPercentageClass(period)"
+                      :title="getCollectionTooltip(period)"
+                    >
+                      {{ getCollectionPercentage(period) }}%
+                    </span>
+                    <div v-if="period.total_collected > period.total_generated" class="text-xs text-orange-600 mt-1">
+                      >100%
+                    </div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -266,9 +321,15 @@ const goToPage = (url: string | null) => {
             </div>
             <div class="bg-white dark:bg-gray-600 rounded p-3">
               <p class="text-xs text-gray-500 dark:text-gray-300">Cobrado</p>
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">
+              <p class="text-sm font-semibold" :class="getCollectionPercentageClass(period)">
                 {{ formatCurrency(period.total_collected) }}
               </p>
+              <div class="text-xs" :class="getCollectionPercentageClass(period)">
+                {{ getCollectionPercentage(period) }}%
+              </div>
+              <div v-if="period.total_collected > period.total_generated" class="text-xs text-orange-600 mt-1">
+                +{{ formatCurrency(period.total_collected - period.total_generated) }}
+              </div>
             </div>
           </div>
 

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\PropertyExpense;
 use App\Models\PropertyExpenseDetail;
+use App\Models\PaymentAllocation;
+use App\Models\Payment;
 use App\Models\ExpensePeriod;
 use App\Models\Propiedad;
 use App\Models\Propietario;
@@ -89,6 +91,9 @@ class ExpenseCalculatorService
 
                     // Guardar detalles individuales de cada propiedad
                     $this->savePropertyExpenseDetails($expense, $consolidatedExpense['properties_details']);
+
+                    // Aplicar automáticamente saldos a favor disponibles
+                    $this->applyAvailableCreditToExpense($expense, $propietarioId, $period);
 
                     $results['generated_expenses']++;
                     $results['total_amount'] += $consolidatedExpense['total_amount'];
@@ -241,19 +246,26 @@ class ExpenseCalculatorService
             // Calcular deuda anterior
             $previousDebt = $this->calculatePreviousDebt($propietarioId, $period);
 
+            // Calcular crédito disponible de períodos anteriores
+            $availableCredit = Payment::getAvailableCreditUntilPeriod($propietarioId, $period->id);
+
             // Usar los totales exactos de los detalles (ya redondeados)
             $totalBaseAmount = $totalBaseAmountFromDetails;
             $totalWaterAmount = $totalWaterAmountFromDetails;
+            $currentPeriodCharges = $totalBaseAmount + $totalWaterAmount;
 
-            // Calcular total con montos ya redondeados de detalles
-            $totalAmount = $totalBaseAmount + $totalWaterAmount + $previousDebt;
+            // Aplicar lógica simplificada:
+            // Total a pagar = cargos del período + deuda anterior - crédito disponible
+            $totalAmount = $currentPeriodCharges + $previousDebt - $availableCredit;
 
             // Logs para verificar consistencia
             Log::info("Resumen cálculo para propietario {$propietarioId}:");
             Log::info("  Base (desde detalles): {$totalBaseAmount} BS");
             Log::info("  Agua (desde detalles): {$totalWaterAmount} BS");
-            Log::info("  Deuda anterior: {$previousDebt} BS");
-            Log::info("  Total final: {$totalAmount} BS");
+            Log::info("  Cargos período actual: {$currentPeriodCharges} BS");
+            Log::info("  Deuda pendiente anterior: {$previousDebt} BS");
+            Log::info("  Crédito disponible: {$availableCredit} BS");
+            Log::info("  Total a calcular: {$currentPeriodCharges} + {$previousDebt} - {$availableCredit} = {$totalAmount} BS");
             Log::info("  Propiedades procesadas: " . count($propertiesDetails));
 
             // Crear resumen de propiedades
@@ -272,6 +284,8 @@ class ExpenseCalculatorService
                 'base_amount' => $totalBaseAmount,
                 'water_amount' => $totalWaterAmount,
                 'previous_debt' => $previousDebt,
+                'current_period_charges' => $currentPeriodCharges,
+                'available_credit' => $availableCredit,
                 'total_amount' => $totalAmount,
                 'has_water_readings' => $hasWaterReadings,
                 'notes' => $notes,
@@ -613,12 +627,12 @@ class ExpenseCalculatorService
     }
 
     /**
-     * Calcular deuda anterior de un propietario
+     * Calcular deuda anterior de un propietario (usando nueva lógica simplificada)
      */
     private function calculatePreviousDebt(int $propietarioId, ExpensePeriod $period): float
     {
         try {
-            // Obtener expensas pendientes de períodos anteriores
+            // Obtener expensas con balance pendiente de períodos anteriores
             $previousExpenses = PropertyExpense::where('propietario_id', $propietarioId)
                 ->whereHas('expensePeriod', function ($query) use ($period) {
                     $query->where(function ($q) use ($period) {
@@ -629,28 +643,166 @@ class ExpenseCalculatorService
                           });
                     });
                 })
-                ->where('status', '!=', 'paid')
+                ->where('balance', '>', 0) // Solo las que tienen saldo pendiente
                 ->get();
 
-            // CORRECCIÓN: Sumar solo los montos reales del período (base + agua + otros)
-            // Esto evita el doble conteo porque total_amount y balance ya incluyen deudas anteriores acumuladas
-            $totalPreviousDebt = $previousExpenses->sum(function ($expense) {
-                return $expense->base_amount + $expense->water_amount + $expense->other_amount;
-            });
+            $totalPreviousDebt = $previousExpenses->sum('balance');
 
-            // Log informativo para verificar el cálculo
-            Log::info("Cálculo de deuda anterior para propietario {$propietarioId}:");
+            Log::info("Cálculo de deuda anterior para propietario {$propietarioId} (período {$period->year}-{$period->month}):");
             Log::info("  Expensas pendientes encontradas: {$previousExpenses->count()}");
-            foreach ($previousExpenses as $expense) {
-                $periodDebt = $expense->base_amount + $expense->water_amount + $expense->other_amount;
-                Log::info("  Periodo {$expense->expensePeriod->year}-{$expense->expensePeriod->month}: base={$expense->base_amount}, agua={$expense->water_amount}, otros={$expense->other_amount}, deuda_periodo={$periodDebt}");
-            }
-            Log::info("  Deuda anterior total: {$totalPreviousDebt} BS");
+            Log::info("  Total deuda pendiente: {$totalPreviousDebt} BS");
 
             return $totalPreviousDebt;
         } catch (\Exception $e) {
             Log::error("Error calculando deuda anterior para propietario {$propietarioId}: " . $e->getMessage());
             return 0;
+        }
+    }
+
+    /**
+     * Calcular saldos a favor disponibles de un propietario (de períodos anteriores)
+     */
+    private function calculateAvailableCredit(int $propietarioId, ExpensePeriod $currentPeriod): float
+    {
+        try {
+            // Obtener todos los pagos activos del propietario hasta períodos anteriores
+            $totalDeposited = DB::table('payments')
+                ->where('propietario_id', $propietarioId)
+                ->where('status', 'active')
+                ->where('payment_date', '<', $currentPeriod->getPeriodStartDate())
+                ->sum('amount');
+
+            // Obtener todo lo que ha sido aplicado a expensas de períodos anteriores
+            $totalAllocated = DB::table('payment_allocations')
+                ->join('property_expenses', 'payment_allocations.property_expense_id', '=', 'property_expenses.id')
+                ->join('expense_periods', 'property_expenses.expense_period_id', '=', 'expense_periods.id')
+                ->where('property_expenses.propietario_id', $propietarioId)
+                ->where(function ($query) use ($currentPeriod) {
+                    $query->where('expense_periods.year', '<', $currentPeriod->year)
+                          ->orWhere(function ($subQ) use ($currentPeriod) {
+                              $subQ->where('expense_periods.year', $currentPeriod->year)
+                                   ->where('expense_periods.month', '<', $currentPeriod->month);
+                          });
+                })
+                ->sum('payment_allocations.amount');
+
+            $availableCredit = $totalDeposited - $totalAllocated;
+
+            Log::info("Cálculo de crédito para propietario {$propietarioId}:");
+            Log::info("  Total depositado hasta períodos anteriores: {$totalDeposited} BS");
+            Log::info("  Total aplicado a expensas anteriores: {$totalAllocated} BS");
+            Log::info("  Crédito disponible: {$availableCredit} BS");
+
+            return max(0, $availableCredit);
+        } catch (\Exception $e) {
+            Log::error("Error calculando crédito para propietario {$propietarioId}: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Aplicar automáticamente saldos a favor disponibles a una nueva expensa
+     */
+    private function applyAvailableCreditToExpense(PropertyExpense $expense, int $propietarioId, ExpensePeriod $period): void
+    {
+        try {
+            // Obtener pagos con saldos a favor disponibles (períodos anteriores al actual)
+            $paymentsWithCredit = DB::table('payments')
+                ->select('payments.*',
+                    DB::raw('(payments.amount - COALESCE(allocated.sum_allocated, 0)) as available_credit'))
+                ->leftJoinSub(
+                    DB::table('payment_allocations')
+                        ->join('property_expenses', 'payment_allocations.property_expense_id', '=', 'property_expenses.id')
+                        ->join('expense_periods', 'property_expenses.expense_period_id', '=', 'expense_periods.id')
+                        ->where('property_expenses.propietario_id', $propietarioId)
+                        ->where(function ($query) use ($period) {
+                            $query->where('expense_periods.year', '<', $period->year)
+                                  ->orWhere(function ($subQ) use ($period) {
+                                      $subQ->where('expense_periods.year', $period->year)
+                                           ->where('expense_periods.month', '<', $period->month);
+                                  });
+                        })
+                        ->groupBy('payment_allocations.payment_id')
+                        ->select('payment_allocations.payment_id', DB::raw('SUM(payment_allocations.amount) as sum_allocated')),
+                    'allocated',
+                    'payments.id',
+                    '=',
+                    'allocated.payment_id'
+                )
+                ->where('payments.propietario_id', $propietarioId)
+                ->where('payments.status', 'active')
+                ->where('payments.payment_date', '<', $period->getPeriodStartDate())
+                ->whereRaw('(payments.amount - COALESCE(allocated.sum_allocated, 0)) > 0')
+                ->orderBy('payments.payment_date', 'asc') // FIFO: aplicar pagos más antiguos primero
+                ->get();
+
+            if ($paymentsWithCredit->isEmpty()) {
+                Log::info("No hay saldos a favor disponibles para propietario {$propietarioId}");
+                return;
+            }
+
+            $totalCreditApplied = 0;
+            $remainingBalance = $expense->balance;
+
+            Log::info("Aplicando saldos a favor para expensa {$expense->id} (saldo inicial: {$remainingBalance} BS):");
+
+            foreach ($paymentsWithCredit as $payment) {
+                if ($remainingBalance <= 0) {
+                    break; // Ya no hay saldo pendiente en la expensa
+                }
+
+                $availableCredit = $payment->available_credit;
+                $amountToApply = min($availableCredit, $remainingBalance);
+
+                if ($amountToApply > 0) {
+                    // Crear la allocation
+                    PaymentAllocation::create([
+                        'payment_id' => $payment->id,
+                        'property_expense_id' => $expense->id,
+                        'amount' => $amountToApply,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $remainingBalance -= $amountToApply;
+                    $totalCreditApplied += $amountToApply;
+
+                    Log::info("  Aplicado {$amountToApply} BS del pago {$payment->receipt_number} (disponible: {$availableCredit} BS)");
+                    Log::info("  Saldo restante en expensa: {$remainingBalance} BS");
+                }
+            }
+
+            // Actualizar la expensa con los pagos aplicados
+            if ($totalCreditApplied > 0) {
+                $newPaidAmount = $expense->paid_amount + $totalCreditApplied;
+                $newBalance = max(0, $expense->balance - $totalCreditApplied);
+
+                $expense->update([
+                    'paid_amount' => $newPaidAmount,
+                    'balance' => $newBalance,
+                ]);
+
+                // Actualizar estado según el saldo
+                if ($newBalance <= 0) {
+                    $expense->update([
+                        'status' => 'paid',
+                        'paid_at' => now(),
+                    ]);
+                    Log::info("  ✅ Expensa {$expense->id} marcada como PAGADA con saldo a favor");
+                } else {
+                    $expense->update([
+                        'status' => 'partial',
+                    ]);
+                    Log::info("  ⚠️ Expensa {$expense->id} marcada como PAGO PARCIAL");
+                }
+
+                Log::info("  Total aplicado: {$totalCreditApplied} BS");
+                Log::info("  Nuevo estado expensa: pagado={$newPaidAmount}, saldo={$newBalance}");
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Error aplicando crédito automático para expensa {$expense->id}: " . $e->getMessage());
+            // No lanzar excepción para no interrumpir el proceso de generación
         }
     }
 

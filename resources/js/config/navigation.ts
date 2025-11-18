@@ -1,4 +1,4 @@
-import { MapPinned, Tag, LockKeyhole, Users, Droplets, Calendar, FileText  } from 'lucide-vue-next';
+import { MapPinned, Tag, LockKeyhole, Users, Droplets, Calendar, FileText, CreditCard  } from 'lucide-vue-next';
 import { dashboard, terrenos, categorias, accesos } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -12,6 +12,12 @@ export const allMainNavItems: NavItem[] = [
     title: 'Expensas',
     href: '/property-expenses',
     icon: FileText,
+    roles: ['admin'],
+  },
+  {
+    title: 'Pagos',
+    href: '/pagos',
+    icon: CreditCard,
     roles: ['admin'],
   },
   {

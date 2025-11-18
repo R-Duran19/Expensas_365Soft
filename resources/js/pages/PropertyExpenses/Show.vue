@@ -434,31 +434,106 @@
             </div>
           </div>
 
-          <!-- Pagos Realizados -->
-          <div v-if="expense.payment_allocations.length > 0" class="bg-white shadow-sm rounded-lg">
+          <!-- Pagos del Período Actual -->
+          <div class="bg-white shadow-sm rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
-              <h2 class="text-lg font-medium text-gray-900">Pagos Realizados</h2>
+              <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900">Pagos del Período</h2>
+                <div class="text-sm text-gray-500">
+                  <div>
+                    Expensa del período: <span class="font-bold text-gray-600">Bs {{ formatCurrency(expense.total_amount) }}</span>
+                  </div>
+                  <div>
+                    Total pagado: <span class="font-bold text-green-600">Bs {{ formatCurrency(getCurrentPeriodPaid()) }}</span>
+                  </div>
+                  <div v-if="getCreditForNextPeriod() > 0">
+                    Saldo a favor para próximo período: <span class="font-bold text-orange-600">Bs {{ formatCurrency(getCreditForNextPeriod()) }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="px-6 py-4">
-              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              <div v-if="getCurrentPeriodPayments().length > 0" class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Recibo</th>
                       <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tipo de Pago</th>
                       <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Monto</th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referencia</th>
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="allocation in expense.payment_allocations" :key="allocation.id">
-                      <td class="px-3 py-2 text-sm text-gray-900">{{ allocation.payment.payment_date }}</td>
-                      <td class="px-3 py-2 text-sm text-gray-900">{{ allocation.payment.payment_type }}</td>
-                      <td class="px-3 py-2 text-sm text-right font-medium text-gray-900">
-                        Bs {{ formatCurrency(allocation.amount) }}
+                    <tr v-for="payment in getCurrentPeriodPayments()" :key="payment.id" class="hover:bg-gray-50">
+                      <td class="px-3 py-2 text-sm text-gray-900">
+                        {{ formatDate(payment.payment_date) }}
+                      </td>
+                      <td class="px-3 py-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {{ payment.receipt_number }}
+                        </span>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900">
+                        <div class="font-medium">{{ payment.payment_type?.name || 'N/A' }}</div>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-right font-medium text-green-600">
+                        Bs {{ formatCurrency(payment.amount) }}
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-500">
+                        {{ payment.reference || '-' }}
                       </td>
                     </tr>
                   </tbody>
+                  <tfoot class="bg-gray-50">
+                    <tr>
+                      <td colspan="3" class="px-3 py-3 text-sm font-bold text-gray-900 text-right">
+                        TOTAL PAGADO:
+                      </td>
+                      <td colspan="2" class="px-3 py-3 text-sm font-bold text-green-600 text-right">
+                        Bs {{ formatCurrency(getCurrentPeriodPaid()) }}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <p class="mt-2">No hay pagos registrados para este período</p>
+              </div>
+
+              <!-- Resumen de Crédito -->
+              <div v-if="getCreditForNextPeriod() > 0" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start">
+                  <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div class="text-green-800">
+                    <p class="font-medium">Saldo a Favor para Próximo Período</p>
+                    <p class="text-sm mt-1">
+                      El propietario tiene <strong>Bs {{ formatCurrency(getCreditForNextPeriod()) }}</strong> disponibles
+                      para aplicar automáticamente en el siguiente período.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Resumen de Deuda Pendiente -->
+              <div v-if="getCurrentPeriodPaid() < expense.total_amount" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start">
+                  <svg class="h-5 w-5 text-red-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div class="text-red-800">
+                    <p class="font-medium">Saldo Pendiente</p>
+                    <p class="text-sm mt-1">
+                      Resta pagar <strong>Bs {{ formatCurrency(expense.total_amount - getCurrentPeriodPaid()) }}</strong>
+                      para completar el pago de este período.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -630,5 +705,41 @@ const getExpenseStatusText = (status) => {
     default:
       return status
   }
+}
+
+// Nuevas funciones para el sistema simplificado de pagos
+const getCurrentPeriodPayments = () => {
+  // Simula la llamada al método del modelo
+  // En una implementación real, esto vendría del backend
+  if (props.expense.current_period_payments) {
+    return props.expense.current_period_payments
+  }
+
+  // Por ahora, usamos las allocations existentes para obtener los payments
+  const payments = props.expense.payment_allocations?.map(allocation => allocation.payment) || []
+  return [...new Map(payments.map(p => [p.id, p])).values()] // Eliminar duplicados
+}
+
+const getCurrentPeriodPaid = () => {
+  // Calcula el total pagado en el período actual
+  const payments = getCurrentPeriodPayments()
+  return payments.reduce((sum, payment) => {
+    return sum + (payment.amount || 0)
+  }, 0)
+}
+
+const getCreditForNextPeriod = () => {
+  const totalPaid = getCurrentPeriodPaid()
+  const creditAvailable = totalPaid - props.expense.total_amount
+  return Math.max(0, creditAvailable)
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 </script>
