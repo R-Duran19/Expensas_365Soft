@@ -241,6 +241,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
+import { useNotification } from '@/composables/useNotification'
 import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
@@ -253,6 +254,8 @@ const props = defineProps({
     default: null
   }
 })
+
+const { showSuccess, showError, showWarning, showInfo } = useNotification()
 
 // Estado
 const isGenerating = ref(false)
@@ -296,37 +299,94 @@ const generateExpenses = async () => {
   }
 
   try {
-    await form.post('/property-expenses/generate', {
-      // Transformar los datos antes de enviar para asegurar que period_id esté incluido
-      transform: (data) => ({
-        ...data,
-        period_id: props.period.id
-      }),
-      onStart: () => {
-        progress.value.message = 'Preparando datos...'
+    // Preparar los datos manualmente
+    const requestData = {
+      period_id: props.period.id,
+      factor_departamento: form.factor_departamento,
+      factor_comercial: form.factor_comercial
+    }
+
+    progress.value.message = 'Enviando solicitud...'
+
+    // Usar fetch directamente para evitar problemas con Inertia
+    const response = await fetch('/property-expenses/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
       },
-      onSuccess: (page) => {
-        results.value = page.props.results
-        progress.value.message = '✅ Generación completada exitosamente'
-      },
-      onError: (errors) => {
-        progress.value.message = '❌ Error en la generación'
-        console.error('Errores de validación:', errors)
-        console.log('Período actual:', props.period)
-        console.log('ID del período:', props.period?.id)
-      },
-      onFinish: () => {
-        isGenerating.value = false
-      }
+      body: JSON.stringify(requestData)
     })
 
-    // Simular progreso si no se tiene progreso real
+    const data = await response.json()
+
+    // Simular progreso mientras se procesa
     simulateProgress()
+
+    if (data.status === 'success' || data.success) {
+      const result = data.results || data
+
+      // Actualizar resultados locales
+      results.value = result
+      progress.value.message = '✅ Generación completada exitosamente'
+
+      // Mostrar notificación de éxito principal
+      showSuccess(
+        'Expensas generadas exitosamente',
+        `${result.generated_expenses} expensas generadas por Bs ${formatCurrency(result.total_amount)}`
+      )
+
+      // Mostrar advertencias si hay propiedades omitidas
+      if (result.skipped_properties > 0) {
+        setTimeout(() => {
+          showWarning(
+            'Propiedades omitidas',
+            `${result.skipped_properties} propiedades fueron omitidas`
+          )
+        }, 500)
+      }
+
+      // Mostrar errores si los hay
+      if (result.errors.length > 0) {
+        setTimeout(() => {
+          showError(
+            'Errores encontrados',
+            `Se encontraron ${result.errors.length} errores durante la generación`
+          )
+        }, 1000)
+      }
+
+      // Si no se generaron expensas pero hay propiedades omitidas
+      if (result.generated_expenses === 0 && result.skipped_properties > 0) {
+        setTimeout(() => {
+          showInfo(
+            'Información',
+            'Todas las propiedades ya tienen expensas generadas para este período'
+          )
+        }, 1500)
+      }
+
+    } else {
+      // Manejar errores del servidor
+      progress.value.message = '❌ Error en la generación'
+      const errorMessage = data.message || 'Error al generar las expensas'
+      showError('Error', errorMessage)
+    }
 
   } catch (error) {
     console.error('Error generando expensas:', error)
-    console.log('Período actual:', props.period)
     progress.value.message = '❌ Error inesperado'
+
+    // Determinar tipo de error
+    if (error.message?.includes('Failed to fetch')) {
+      showError('Error de conexión', 'No se pudo conectar al servidor. Verifica tu conexión a internet.')
+    } else if (error.message?.includes('JSON')) {
+      showError('Error de respuesta', 'El servidor devolvió una respuesta inesperada.')
+    } else {
+      showError('Error inesperado', 'Ocurrió un error inesperado. Por favor, intenta nuevamente.')
+    }
+
+  } finally {
     isGenerating.value = false
   }
 }
