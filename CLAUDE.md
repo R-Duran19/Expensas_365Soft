@@ -25,10 +25,13 @@ Expensas 365Soft is a Laravel + Vue 3 application for managing condominium and p
 - `npm run build:ssr` - Build with SSR
 - `npm run lint` - Run ESLint
 - `npm run format` - Format code with Prettier
+- `npm run format:check` - Check formatting without modifying files
 
 ### Testing
-- `composer test` - Run full test suite
+- `composer test` - Run full test suite (includes config:clear)
 - Individual tests can be run with Pest syntax
+- Testing uses in-memory SQLite database (see phpunit.xml)
+- Test environment uses array drivers for session/cache
 
 ## Architecture
 
@@ -40,26 +43,30 @@ Expensas 365Soft is a Laravel + Vue 3 application for managing condominium and p
 - **Routes**: Organized in separate files by module (expensas.php, propiedades.php, etc.)
 
 ### Frontend Structure
-- **Vue 3 + Composition API**: Modern reactive frontend
+- **Vue 3 + Composition API**: Modern reactive frontend with TypeScript
 - **Inertia.js**: SPA-like experience without separate API
-- **TypeScript**: Type-safe JavaScript
-- **UI Components**: Custom component library with Reka UI
+- **UI Libraries**: Reka UI + PrimeVue components
+- **Icons**: Lucide Vue Next
+- **Styling**: Tailwind CSS v4 with tw-animate-css for animations
 - **Pages**: Organized by feature (Accesos, ExpensePeriods, etc.)
-- **Tailwind CSS**: Utility-first styling
+- **Build Tools**: Vite with Laravel Vite Plugin and Wayfinder
 
 ### Key Business Logic
 - **Expense Calculation**: CalculoExpensasService handles water bill calculations based on meter readings
+- **Payment Processing**: PaymentAllocationService handles multi-step payment allocation
 - **Property Management**: Properties can have individual or shared meters
 - **Billing Periods**: Monthly billing cycles with factor-based calculations
-- **Payment Processing**: Multi-step payment allocation and cash transaction management
+- **Transaction Management**: CashTransaction handling with multiple transaction types
 
 ### Database Architecture
-- **Properties**: Core real estate entities
-- **Meters**: Water consumption tracking (individual/shared)
-- **Readings**: Monthly meter consumption data
+- **Properties**: Core real estate entities (Propietario/Inquilino relationships)
+- **Meters**: Water consumption tracking (individual/shared) with grouping support
+- **Readings**: Monthly meter consumption data (Lectura model)
 - **Billing Periods**: Monthly expense calculation cycles
-- **Expenses**: Generated bills for each property
-- **Payments**: Transaction and allocation tracking
+- **Expenses**: Generated bills for each property (Expensa model)
+- **Payments**: Transaction and allocation tracking (Pago/Payment models)
+- **Invoicing**: Factura and FacturaMedidorPrincipal for billing
+- **Property Types**: Apartments, parking spaces, storage units, offices, commercial spaces
 
 ### Authentication & Authorization
 - Laravel Fortify for authentication
@@ -78,7 +85,9 @@ Expensas 365Soft is a Laravel + Vue 3 application for managing condominium and p
 ### Route Organization
 Routes are split into separate files by module:
 - Main routes in `routes/web.php`
-- Feature-specific routes (expensas.php, propiedades.php, etc.)
+- Feature-specific routes: accesos.php, expensas.php, facturas.php, facturas-medidores-principales.php, grupos-medidores.php, lecturas.php, medidores.php, payments.php, periodos.php, propiedades.php, property-expenses.php, expense-periods.php
+- Authentication routes in `routes/auth.php`
+- Settings routes in `routes/settings.php`
 - Admin-only routes protected by role middleware
 
 ### Vue Component Structure
@@ -89,10 +98,19 @@ Routes are split into separate files by module:
 
 ### Database Relationships
 - Properties have owners (Propietario) and tenants (Inquilino)
-- Meters belong to properties or groups
-- Readings are recorded monthly per meter
-- Expenses are generated per property per billing period
-- Payments are allocated to specific expenses
+- Meters belong to properties or groups (GruposMedidores)
+- Readings (Lectura) are recorded monthly per meter
+- Expenses (Expensa) are generated per property per billing period
+- Payments (Pago/Payment) are allocated to specific expenses
+- Invoices (Factura) are generated for billing periods and main meters
+
+### Development Environment Setup
+- Uses Laragon for local development
+- Database migrations and seeders for initial setup
+- Spanish localization (APP_LOCALE=es)
+- Testing environment uses in-memory SQLite database
+- Real-time logging with Laravel Pail
+- Queue processing enabled in development mode
 
 ## Important Notes
 
@@ -101,3 +119,5 @@ Routes are split into separate files by module:
 - All monetary values are stored in Bolivianos (BS)
 - The application uses Spanish terminology throughout
 - Role-based access is enforced at multiple levels
+- SSR (Server-Side Rendering) support available for production
+- Property types include residential apartments, parking, storage, offices, and commercial spaces

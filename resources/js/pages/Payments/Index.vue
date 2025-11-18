@@ -1,4 +1,5 @@
 <template>
+  <AppLayout>
   <div class="p-6 space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -145,21 +146,22 @@
                   {{ payment.status === 'active' ? 'Activo' : 'Anulado' }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <div class="flex space-x-2">
-                  <Link
-                    :href="`/pagos/${payment.id}`"
-                    class="text-blue-600 hover:text-blue-900"
-                  >
-                    <i class="fas fa-eye"></i>
-                  </Link>
-                  <button
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">            
+               <div class="flex space-x-2 items-center">
+                <Link
+                :href="`/pagos/${payment.id}`"
+                class="inline-flex items-center justify-center w-8 h-8 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 rounded-full transition-colors duration-200 shadow-sm"
+                title="Ver detalles del pago"
+                >
+                <EyeIcon class="w-5 h-5" /> </Link>
+
+                 <button
                     v-if="payment.status === 'active'"
                     @click="confirmCancelPayment(payment)"
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
+                    class="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-800 rounded-full transition-colors duration-200 shadow-sm"
+                    title="Anular pago"
+                   >
+                  <XIcon class="w-5 h-5" /> </button>
                 </div>
               </td>
             </tr>
@@ -267,12 +269,15 @@
       </div>
     </div>
   </div>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { debounce } from 'lodash'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { EyeIcon, XIcon } from 'lucide-vue-next'
 
 const props = defineProps({
   payments: Object,

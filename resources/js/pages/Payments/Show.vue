@@ -1,4 +1,5 @@
 <template>
+  <Applayout>
   <div class="p-6 space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -327,11 +328,13 @@
       </div>
     </div>
   </div>
+  </Applayout>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
+import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
   payment: Object
