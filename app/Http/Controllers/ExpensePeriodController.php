@@ -137,15 +137,63 @@ public function store(Request $request)
      */
     public function receipts(ExpensePeriod $expensePeriod)
     {
+        // Obtener pagos con todas las relaciones necesarias
         $receipts = Payment::where('expense_period_id', $expensePeriod->id)
             ->where('status', 'active')
-            ->with(['paymentType', 'propietario', 'propiedad'])
+            ->with([
+                'paymentType:id,name',
+                'propietario:id,nombre_completo',
+                'propiedad:id,codigo,ubicacion'
+            ])
             ->orderBy('payment_date', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($payment) {
+                // Corregir datos si es necesario
+                if (!$payment->receipt_number) {
+                    $payment->update(['receipt_number' => Payment::generateReceiptNumber()]);
+                    $payment->refresh();
+                }
+
+                return [
+                    'id' => $payment->id,
+                    'receipt_number' => $payment->receipt_number ?: 'SIN RECIBO',
+                    'amount' => (float) $payment->amount,
+                    'payment_date' => $payment->payment_date ? $payment->payment_date->format('Y-m-d') : $payment->created_at->format('Y-m-d'),
+                    'reference' => $payment->reference,
+                    'notes' => $payment->notes,
+                    'created_at' => $payment->created_at->format('Y-m-d H:i:s'),
+                    'payment_type' => $payment->paymentType ? [
+                        'id' => $payment->paymentType->id,
+                        'name' => $payment->paymentType->name
+                    ] : [
+                        'id' => 0,
+                        'name' => 'Tipo no especificado'
+                    ],
+                    'propietario' => $payment->propietario ? [
+                        'id' => $payment->propietario->id,
+                        'nombre_completo' => $payment->propietario->nombre_completo
+                    ] : (object) ['id' => 0, 'nombre_completo' => 'No asignado'],
+                    'propiedad' => $payment->propiedad ? [
+                        'id' => $payment->propiedad->id,
+                        'codigo' => $payment->propiedad->codigo,
+                        'ubicacion' => $payment->propiedad->ubicacion
+                    ] : (object) ['id' => 0, 'codigo' => 'N/A', 'ubicacion' => 'No asignada']
+                ];
+            });
 
         // Calcular totales
         $totalAmount = $receipts->sum('amount');
         $totalReceipts = $receipts->count();
+
+        // Agrupar por tipo de pago para estadísticas
+        $paymentTypes = $receipts->filter(function ($receipt) {
+            return $receipt['payment_type'] && $receipt['payment_type']['name'];
+        })->groupBy('payment_type.name')->map(function ($group) {
+            return [
+                'count' => $group->count(),
+                'total' => $group->sum('amount')
+            ];
+        });
 
         return Inertia::render('ExpensePeriods/Receipts', [
             'period' => $expensePeriod,
@@ -153,12 +201,7 @@ public function store(Request $request)
             'statistics' => [
                 'total_receipts' => $totalReceipts,
                 'total_amount' => $totalAmount,
-                'payment_types' => $receipts->groupBy('payment_type.name')->map(function ($group) {
-                    return [
-                        'count' => $group->count(),
-                        'total' => $group->sum('amount')
-                    ];
-                })
+                'payment_types' => $paymentTypes
             ]
         ]);
     }

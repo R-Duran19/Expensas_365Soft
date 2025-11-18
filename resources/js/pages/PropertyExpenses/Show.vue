@@ -470,12 +470,16 @@
                         {{ formatDate(payment.payment_date) }}
                       </td>
                       <td class="px-3 py-2 text-sm">
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span
+                          :class="payment.receipt_number === 'SIN-RECIBO'
+                            ? 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800'
+                            : 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800'"
+                        >
                           {{ payment.receipt_number }}
                         </span>
                       </td>
                       <td class="px-3 py-2 text-sm text-gray-900">
-                        <div class="font-medium">{{ payment.payment_type?.name || 'N/A' }}</div>
+                        <div class="font-medium">{{ payment.payment_type || 'Sin tipo' }}</div>
                       </td>
                       <td class="px-3 py-2 text-sm text-right font-medium text-green-600">
                         Bs {{ formatCurrency(payment.amount) }}
@@ -735,11 +739,22 @@ const getCreditForNextPeriod = () => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  if (!dateString) return 'Sin fecha'
+
+  try {
+    const date = new Date(dateString)
+
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) return 'Fecha inválida'
+
+    return date.toLocaleDateString('es-BO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  } catch (error) {
+    console.warn('Error al formatear fecha:', dateString, error)
+    return 'Fecha inválida'
+  }
 }
 </script>

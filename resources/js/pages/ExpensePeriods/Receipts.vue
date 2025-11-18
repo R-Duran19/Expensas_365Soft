@@ -68,13 +68,29 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Formateo de fecha
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+// Formateo de fecha mejorado para manejar fechas inválidas
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) {
+    return 'Sin fecha';
+  }
+
+  try {
+    const date = new Date(dateString);
+
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida';
+    }
+
+    return date.toLocaleDateString('es-BO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch (error) {
+    console.warn('Error al formatear fecha:', dateString, error);
+    return 'Fecha inválida';
+  }
 };
 
 // Nombre del mes
@@ -219,7 +235,11 @@ const viewPaymentDetail = (paymentId: number) => {
                     {{ formatDate(receipt.payment_date) }}
                   </TableCell>
                   <TableCell>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span
+                      :class="receipt.receipt_number === 'SIN RECIBO'
+                        ? 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800'
+                        : 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800'"
+                    >
                       {{ receipt.receipt_number }}
                     </span>
                   </TableCell>
@@ -233,8 +253,12 @@ const viewPaymentDetail = (paymentId: number) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge :variant="receipt.payment_type?.name ? 'default' : 'secondary'">
-                      {{ receipt.payment_type?.name || 'N/A' }}
+                    <Badge
+                      :variant="receipt.payment_type?.name
+                        ? (receipt.payment_type.name.toLowerCase().includes('efectivo') ? 'default' : 'secondary')
+                        : 'destructive'"
+                    >
+                      {{ receipt.payment_type?.name || 'Sin tipo' }}
                     </Badge>
                   </TableCell>
                   <TableCell class="text-sm text-right font-medium text-green-600">

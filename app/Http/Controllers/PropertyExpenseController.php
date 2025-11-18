@@ -202,6 +202,8 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
             'propietario',
             'inquilino',
             'paymentAllocations.payment.paymentType',
+            'paymentAllocations.payment.propietario',
+            'paymentAllocations.payment.propiedad',
             'details.propiedad',
             'waterFactor'
         ]);
@@ -286,9 +288,19 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                         'amount' => $allocation->amount,
                         'payment' => [
                             'id' => $allocation->payment->id,
-                            'payment_date' => $allocation->payment->payment_date->format('d/m/Y'),
+                            'receipt_number' => $allocation->payment->receipt_number ?: 'SIN-RECIBO',
+                            'payment_date' => $allocation->payment->payment_date ? $allocation->payment->payment_date->format('Y-m-d') : null,
                             'amount' => $allocation->payment->amount,
-                            'payment_type' => $allocation->payment->paymentType?->name ?? 'No especificado',
+                            'payment_type' => $allocation->payment->paymentType?->name ?? 'Sin tipo',
+                            'reference' => $allocation->payment->reference,
+                            'notes' => $allocation->payment->notes,
+                            'propietario' => [
+                                'nombre_completo' => $allocation->payment->propietario?->nombre_completo ?? 'No asignado'
+                            ],
+                            'propiedad' => [
+                                'codigo' => $allocation->payment->propiedad?->codigo ?? 'N/A',
+                                'ubicacion' => $allocation->payment->propiedad?->ubicacion ?? 'No asignada'
+                            ]
                         ],
                         'created_at' => $allocation->created_at->format('d/m/Y H:i'),
                     ];

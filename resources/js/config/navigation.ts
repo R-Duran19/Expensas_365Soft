@@ -9,25 +9,6 @@ export const allMainNavItems: NavItem[] = [
     icon: Home,
   },
   {
-    title: 'AGUA',
-    icon: Waves,
-    roles: ['admin'],
-    children: [
-      {
-        title: 'Lecturas',
-        href: '/lecturas',
-        icon: Droplets,
-        roles: ['admin'],
-      },
-      {
-        title: 'Medidores',
-        href: '/medidores',
-        icon: Tag,
-        roles: ['admin'],
-      },
-    ],
-  },
-  {
     title: 'EXPENSAS',
     icon: FileText,
     roles: ['admin'],
@@ -51,6 +32,25 @@ export const allMainNavItems: NavItem[] = [
     href: '/pagos',
     icon: CreditCard,
     roles: ['admin'],
+  },
+    {
+    title: 'AGUA',
+    icon: Waves,
+    roles: ['admin'],
+    children: [
+      {
+        title: 'Lecturas',
+        href: '/lecturas',
+        icon: Droplets,
+        roles: ['admin'],
+      },
+      {
+        title: 'Medidores',
+        href: '/medidores',
+        icon: Tag,
+        roles: ['admin'],
+      },
+    ],
   },
   {
     title: 'PERSONAS',
