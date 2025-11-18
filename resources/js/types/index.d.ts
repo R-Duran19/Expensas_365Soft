@@ -41,11 +41,12 @@ export interface PageProps {
 // Item de navegación
 export interface NavItem {
     title: string;
-    href: string;
+    href?: string; // Opcional para items que solo son contenedores
     icon: LucideIcon | Component; // Cambiado para aceptar LucideIcon
     roles?: string[];
     badge?: string | number;
     isActive?: boolean;
+    children?: NavItem[]; // Para items desplegables
 }
 
 // Item de breadcrumb
