@@ -12,7 +12,7 @@
       </div>
 
       <!-- Información importante -->
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <div class="flex">
           <div class="flex-shrink-0">
             <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -29,6 +29,28 @@
                 <li><strong>Medidores Domiciliarios:</strong> Pueden ser 2 o más medidores para departamentos/casas</li>
                 <li><strong>Cálculo de factores:</strong> Importe total ÷ Consumo total en m³</li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </div> -->
+            <!-- Períodos disponibles para registrar -->
+      <div v-if="periodos_disponibles.length > 0">
+        <h2 class="text-lg font-medium text-gray-900 mb-4">Períodos Disponibles para Registrar</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="periodo in periodos_disponibles"
+            :key="periodo.mes_periodo"
+            class="bg-white shadow-sm rounded-lg border border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
+            @click="registrarFacturasPeriodo(periodo.mes_periodo)"
+          >
+            <div class="px-6 py-8 text-center">
+              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-1">{{ periodo.periodo_formateado }}</h3>
+              <p class="text-sm text-gray-500">Registrar facturas de este período</p>
             </div>
           </div>
         </div>
@@ -95,28 +117,7 @@
         </div>
       </div>
 
-      <!-- Períodos disponibles para registrar -->
-      <div v-if="periodos_disponibles.length > 0">
-        <h2 class="text-lg font-medium text-gray-900 mb-4">Períodos Disponibles para Registrar</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="periodo in periodos_disponibles"
-            :key="periodo.mes_periodo"
-            class="bg-white shadow-sm rounded-lg border border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
-            @click="registrarFacturasPeriodo(periodo.mes_periodo)"
-          >
-            <div class="px-6 py-8 text-center">
-              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
-              <h3 class="text-lg font-medium text-gray-900 mb-1">{{ periodo.periodo_formateado }}</h3>
-              <p class="text-sm text-gray-500">Registrar facturas de este período</p>
-            </div>
-          </div>
-        </div>
-      </div>
+
 
       <!-- No hay períodos disponibles -->
       <div v-if="periodos_con_facturas.length === 0 && periodos_disponibles.length === 0" class="text-center py-12">

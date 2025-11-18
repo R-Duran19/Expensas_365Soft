@@ -6,7 +6,8 @@
       "Bash(ren:*)",
       "Bash(php artisan:*)",
       "Bash(php:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

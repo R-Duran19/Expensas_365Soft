@@ -311,6 +311,9 @@
 import { Link, router } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { useNotification } from '@/composables/useNotification';
+
+const { showSuccess, showError } = useNotification();
 
 const props = defineProps({
   mes_periodo: {
@@ -395,23 +398,20 @@ const eliminarFactura = (index) => {
 const submitForm = async () => {
   isSubmitting.value = true
 
-  try {
-    const response = await router.post('/facturas-medidores-principales', form.value, {
-      onSuccess: (page) => {
-        // Redirigir a la vista del período
-        router.get(`/facturas-medidores-principales?mes_periodo=${props.mes_periodo}`)
-      },
-      onError: (errors) => {
-        console.error('Errores de validación:', errors)
-      },
-      onFinish: () => {
-        isSubmitting.value = false
+  router.post('/facturas-medidores-principales', form.value, {
+    onSuccess: (page) => {
+      if (page.props.flash?.success) {
+        showSuccess(page.props.flash.success);
       }
-    })
-  } catch (error) {
-    console.error('Error al guardar:', error)
-    isSubmitting.value = false
-  }
+    },
+    onError: (errors) => {
+      console.error('Errores de validación:', errors)
+      showError('Error al guardar las facturas');
+    },
+    onFinish: () => {
+      isSubmitting.value = false
+    }
+  })
 }
 
 const formatCurrency = (amount) => {

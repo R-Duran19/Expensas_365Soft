@@ -6,7 +6,6 @@ use App\Models\FacturaMedidorPrincipal;
 use App\Models\ExpensePeriod;
 use App\Models\PeriodoFacturacion;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -168,7 +167,7 @@ class FacturaMedidorPrincipalController extends Controller
     /**
      * Guardar facturas de medidores principales
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
         $request->validate([
             'mes_periodo' => 'required|string|regex:/^\d{4}-\d{2}$/',
@@ -212,47 +211,46 @@ class FacturaMedidorPrincipalController extends Controller
                 }
             }
 
-            // Obtener resumen actualizado
-            $resumen = FacturaMedidorPrincipal::getResumenPeriodo($request->mes_periodo);
-
             DB::commit();
 
-            return response()->json([
-                'message' => 'Facturas guardadas correctamente',
-                'status' => 'success',
-                'facturas_creadas' => $facturasCreadas,
-                'facturas_actualizadas' => $facturasActualizadas,
-                'resumen' => $resumen,
-            ]);
+            // Construir mensaje de éxito
+            $message = 'Facturas guardadas correctamente';
+            if ($facturasCreadas > 0 && $facturasActualizadas > 0) {
+                $message = "Se crearon {$facturasCreadas} factura(s) nueva(s) y se actualizaron {$facturasActualizadas} factura(s) existente(s)";
+            } elseif ($facturasCreadas > 0) {
+                $message = "Se crearon {$facturasCreadas} factura(s) correctamente";
+            } elseif ($facturasActualizadas > 0) {
+                $message = "Se actualizaron {$facturasActualizadas} factura(s) correctamente";
+            }
+
+            // Redirigir con mensaje de éxito usando Inertia
+            return redirect()->route('facturas-medidores-principales.index')
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json([
-                'message' => 'Error al guardar facturas: ' . $e->getMessage(),
-                'status' => 'error'
-            ], 500);
+            return redirect()->back()
+                ->with('error', 'Error al guardar facturas: ' . $e->getMessage())
+                ->withInput();
         }
     }
 
     /**
      * Eliminar una factura
      */
-    public function destroy(FacturaMedidorPrincipal $factura): JsonResponse
+    public function destroy(FacturaMedidorPrincipal $factura)
     {
         try {
+            $mesPeriodo = $factura->mes_periodo;
             $factura->delete();
 
-            return response()->json([
-                'message' => 'Factura eliminada correctamente',
-                'status' => 'success'
-            ]);
+            return redirect()->back()
+                ->with('success', 'Factura eliminada correctamente');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al eliminar factura: ' . $e->getMessage(),
-                'status' => 'error'
-            ], 500);
+            return redirect()->back()
+                ->with('error', 'Error al eliminar factura: ' . $e->getMessage());
         }
     }
 
