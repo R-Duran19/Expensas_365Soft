@@ -205,9 +205,9 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Total Cobrado
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <!-- <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   % Cobro
-                </th>
+                </th> -->
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Propiedades
                 </th>
@@ -264,7 +264,7 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <!-- <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm">
                     <span
                       :class="getCollectionPercentageClass(period)"
@@ -276,7 +276,7 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
                       >100%
                     </div>
                   </div>
-                </td>
+                </td> -->
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-500 dark:text-gray-400">
                     {{ period.property_expenses_count }}

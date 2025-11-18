@@ -1,5 +1,5 @@
 <template>
-  <Applayout>
+  <AppLayout>
   <div class="p-6 space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -328,7 +328,7 @@
       </div>
     </div>
   </div>
-  </Applayout>
+  </AppLayout>
 </template>
 
 <script setup>

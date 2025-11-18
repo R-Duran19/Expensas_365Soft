@@ -37,21 +37,27 @@
       </div>
     </div>
 
-    <!-- Formulario -->
-    <div v-if="activePeriod" class="bg-white rounded-lg shadow">
-      <form @submit.prevent="submitPayment" class="space-y-6 p-6">
-        <!-- Selección de Propietario -->
-        <div class="border-b pb-4">
-          <h2 class="text-lg font-medium text-gray-900">1. Seleccionar Propietario</h2>
-          <div class="mt-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+    <!-- Layout en 3 Columnas -->
+    <div v-if="activePeriod" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Columna Izquierda: Selección de Propietario -->
+      <div class="lg:col-span-1">
+        <div class="bg-card rounded-lg shadow p-6">
+          <div class="flex items-center mb-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+              <span class="text-primary font-semibold text-sm">1</span>
+            </div>
+            <h2 class="text-lg font-semibold text-foreground">Seleccionar Propietario</h2>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium-foreground mb-2">
               Propietario *
             </label>
             <select
               v-model="form.propietario_id"
               required
               @change="onOwnerChange"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-input text-foreground"
             >
               <option value="">Seleccionar propietario...</option>
               <option v-for="owner in propietarios" :key="owner.id" :value="owner.id">
@@ -59,63 +65,80 @@
               </option>
             </select>
           </div>
+
+          <!-- Información del propietario seleccionado -->
+          <div v-if="form.propietario_id" class="mt-4 p-3 bg-muted rounded-lg">
+            <div class="flex items-center">
+              <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-user text-primary"></i>
+              </div>
+              <div>
+                <p class="font-medium text-foreground">
+                  {{ propietarios.find(o => o.id === form.propietario_id)?.nombre_completo }}
+                </p>
+                <p class="text-sm text-muted-foreground">CI: {{ propietarios.find(o => o.id === form.propietario_id)?.ci }}</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <!-- Información de la Expensa Actual -->
-        <div v-if="currentExpense" class="border-b pb-4">
-          <h2 class="text-lg font-medium text-gray-900">2. Expensa del Período</h2>
-          <div class="mt-4 bg-gray-50 rounded-lg p-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <!-- Propiedad -->
-              <div>
-                <span class="text-sm font-medium text-gray-500">Propiedad:</span>
-                <p class="text-sm text-gray-900 font-semibold">
-                  {{ currentExpense.propiedad?.codigo || 'N/A' }}
-                </p>
-              </div>
+      <!-- Columna Central: Información de la Expensa -->
+      <div class="lg:col-span-1">
+        <div v-if="currentExpense" class="bg-card rounded-lg shadow p-6">
+          <div class="flex items-center mb-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+              <span class="text-primary font-semibold text-sm">2</span>
+            </div>
+            <h2 class="text-lg font-semibold text-foreground">Detalles de Expensa</h2>
+          </div>
 
-              <!-- Monto original de la expensa -->
-              <div>
-                <span class="text-sm font-medium text-gray-500">Monto original:</span>
-                <p class="text-lg font-bold text-gray-700">
-                  {{ formatCurrency(currentExpense.total_amount) }}
-                </p>
-              </div>
-
-              <!-- Total pagado hasta ahora -->
-              <div>
-                <span class="text-sm font-medium text-gray-500">Pagado hasta ahora:</span>
-                <p class="text-lg font-bold text-green-600">
-                  {{ formatCurrency(currentExpense.total_amount - currentExpense.balance) }}
-                </p>
-              </div>
-
-              <!-- Saldo pendiente -->
-              <div>
-                <span class="text-sm font-medium text-gray-500">Saldo pendiente:</span>
-                <p class="text-lg font-bold" :class="currentExpense.balance > 0 ? 'text-red-600' : 'text-green-600'">
-                  {{ formatCurrency(currentExpense.balance) }}
-                </p>
+          <div class="space-y-4">
+            <!-- Propiedad -->
+            <div class="bg-muted rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-muted-foreground">Propiedad</span>
+                <span class="font-bold text-foreground">{{ currentExpense.propiedad?.codigo || 'N/A' }}</span>
               </div>
             </div>
 
-            <!-- Barra de progreso visual -->
-            <div v-if="currentExpense.total_amount > 0" class="mt-4">
-              <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <!-- Montos -->
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-muted-foreground">Monto original:</span>
+                <span class="font-semibold text-foreground">{{ formatCurrency(currentExpense.total_amount) }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-muted-foreground">Pagado hasta ahora:</span>
+                <span class="font-semibold text-green-600">{{ formatCurrency(currentExpense.total_amount - currentExpense.balance) }}</span>
+              </div>
+              <div class="border-t border-border pt-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-foreground">Saldo pendiente:</span>
+                  <span class="text-lg font-bold" :class="currentExpense.balance > 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ formatCurrency(currentExpense.balance) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div v-if="currentExpense.total_amount > 0" class="space-y-2">
+              <div class="flex justify-between text-xs text-muted-foreground">
                 <span>Progreso de pago</span>
                 <span>{{ getPaymentPercentage() }}%</span>
               </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="w-full bg-muted rounded-full h-3">
                 <div
-                  class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  class="bg-primary h-3 rounded-full transition-all duration-500"
                   :style="{ width: Math.min(getPaymentPercentage(), 100) + '%' }"
                 ></div>
               </div>
             </div>
 
-            <!-- Estado de la expensa -->
-            <div v-if="currentExpense.status !== 'paid'" class="mt-3">
-              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getStatusClass(currentExpense.status)">
+            <!-- Estado -->
+            <div class="flex justify-center">
+              <span class="px-3 py-1 inline-flex text-sm font-semibold rounded-full" :class="getStatusClass(currentExpense.status)">
                 {{ getStatusText(currentExpense.status) }}
               </span>
             </div>
@@ -123,58 +146,50 @@
         </div>
 
         <!-- Alerta si no tiene expensa -->
-        <div v-else-if="form.propietario_id && !loadingExpense" class="border-b pb-4">
-          <h2 class="text-lg font-medium text-gray-900">2. Expensa del Período</h2>
-          <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div class="flex items-center">
-              <i class="fas fa-exclamation-circle text-yellow-600 mr-3"></i>
-              <div>
-                <p class="text-yellow-800">
-                  El propietario seleccionado no tiene una expensa generada para el período actual.
-                </p>
-                <p class="text-yellow-600 text-sm mt-1">
-                  Por favor, genere las expensas del período antes de registrar pagos.
-                </p>
-              </div>
+        <div v-else-if="form.propietario_id && !loadingExpense" class="bg-muted border border-border rounded-lg p-6">
+          <div class="flex items-start">
+            <i class="fas fa-exclamation-triangle text-yellow-600 mr-3 mt-1"></i>
+            <div>
+              <h3 class="font-semibold text-foreground">Sin Expensa del Período</h3>
+              <p class="text-muted-foreground text-sm mt-1">
+                El propietario seleccionado no tiene una expensa generada para el período actual.
+              </p>
+              <p class="text-muted-foreground text-xs mt-2">
+                Por favor, genere las expensas del período antes de registrar pagos.
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- Información del Pago -->
-        <div v-if="currentExpense" class="border-b pb-4">
-          <h2 class="text-lg font-medium text-gray-900">3. Información del Pago</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Número de Recibo
-              </label>
-              <input
-                v-model="form.receipt_number"
-                type="text"
-                readonly
-                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-              />
+        <!-- Indicador de carga -->
+        <div v-else-if="loadingExpense" class="bg-card rounded-lg shadow p-12">
+          <div class="text-center">
+            <i class="fas fa-spinner fa-spin text-primary text-2xl mb-3"></i>
+            <p class="text-muted-foreground">Cargando información de expensa...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna Derecha: Información de Pago (Card Principal) -->
+      <div class="lg:col-span-1">
+        <div v-if="currentExpense" class="bg-primary border-2 border-primary/20 rounded-xl shadow-xl p-6 text-primary-foreground">
+          <div class="flex items-center mb-6">
+            <div class="w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center mr-3">
+              <span class="text-primary-foreground font-semibold text-sm">3</span>
             </div>
+            <h2 class="text-xl font-bold">Información del Pago</h2>
+          </div>
+
+          <!-- Formulario de pago -->
+          <form @submit.prevent="submitPayment" class="space-y-4">
+            <!-- Tipo de Pago -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Fecha de Pago *
-              </label>
-              <input
-                v-model="form.payment_date"
-                type="date"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Tipo de Pago *
-              </label>
+              <label class="block text-sm font-medium text-primary-foreground/80 mb-2">Tipo de Pago *</label>
               <select
                 v-model="form.payment_type_id"
                 required
                 @change="onPaymentTypeChange"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-primary-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-primary-foreground/90 text-primary"
               >
                 <option value="">Seleccionar...</option>
                 <option v-for="type in paymentTypes" :key="type.id" :value="type.id">
@@ -182,15 +197,14 @@
                 </option>
               </select>
             </div>
+
+            <!-- Monto del Pago -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Monto del Pago *
-                <span v-if="currentExpense && form.amount > currentExpense.balance" class="text-yellow-600 text-xs ml-2">
-                  <i class="fas fa-exclamation-triangle mr-1"></i>Excede el saldo pendiente
-                </span>
+              <label class="block text-sm font-medium text-primary-foreground/80 mb-2">
+                Monto a Pagar *
               </label>
               <div class="relative">
-                <span class="absolute left-3 top-2 text-gray-500">Bs.</span>
+                <span class="absolute left-3 top-2 text-primary font-medium">Bs.</span>
                 <input
                   v-model.number="form.amount"
                   type="number"
@@ -198,143 +212,122 @@
                   min="0.01"
                   required
                   @input="onAmountChange"
-                  :class="[
-                    'w-full pl-12 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    form.amount > currentExpense.balance ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                  ]"
+                  class="w-full pl-12 pr-3 py-3 border border-primary-foreground/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-primary-foreground/90 text-primary font-semibold text-lg"
+                  placeholder="0.00"
                 />
               </div>
-              <!-- Indicador de deuda pendiente -->
-              <div v-if="currentExpense" class="mt-1 text-xs text-gray-600">
+              <!-- Indicador de deuda -->
+              <div class="mt-1 text-xs text-primary-foreground/70">
                 Saldo pendiente: {{ formatCurrency(currentExpense.balance) }}
               </div>
             </div>
+
+            <!-- Fecha de Pago -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Referencia
-              </label>
+              <label class="block text-sm font-medium text-primary-foreground/80 mb-2">Fecha de Pago *</label>
               <input
-                v-model="form.reference"
-                type="text"
-                :placeholder="getReferencePlaceholder()"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                v-model="form.payment_date"
+                type="date"
+                required
+                class="w-full px-3 py-2 border border-primary-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-primary-foreground/90 text-primary"
               />
             </div>
-          </div>
 
-          <!-- Previsualización del resultado -->
-          <div v-if="form.amount > 0" class="mt-4 p-4 bg-blue-50 rounded-lg">
-            <h4 class="font-medium text-blue-900 mb-3">Resumen del Pago:</h4>
-            <div class="text-sm space-y-2">
-              <!-- Deuda original -->
-              <div class="flex justify-between items-center pb-2 border-b">
-                <span class="text-gray-600">Deuda original:</span>
-                <span class="font-medium text-gray-900">
-                  {{ formatCurrency(currentExpense.total_amount) }}
-                </span>
-              </div>
-
-              <!-- Saldo pendiente antes del pago -->
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Saldo pendiente:</span>
-                <span class="font-medium text-red-600">
-                  {{ formatCurrency(currentExpense.balance) }}
-                </span>
-              </div>
-
-              <!-- Monto recibido -->
-              <div class="flex justify-between items-center bg-white p-2 rounded border">
-                <span class="font-semibold text-gray-900">Monto recibido:</span>
-                <span class="font-bold text-blue-600 text-base">
-                  {{ formatCurrency(form.amount) }}
-                </span>
-              </div>
-
-              <!-- Diferencia (pago excedido) -->
-              <div v-if="form.amount > currentExpense.balance" class="flex justify-between items-center p-2 bg-yellow-100 rounded">
-                <span class="text-yellow-800">
-                  <i class="fas fa-arrow-up mr-1"></i>Pago excedido:
-                </span>
-                <span class="font-bold text-yellow-900">
-                  +{{ formatCurrency(form.amount - currentExpense.balance) }}
-                </span>
-              </div>
-
-              <!-- Resultado final -->
-              <div class="flex justify-between items-center pt-2 border-t">
-                <span class="font-semibold text-gray-900">Saldo final:</span>
-                <span class="font-bold" :class="getRemainingBalanceColor()">
-                  {{ calculateRemainingBalance() >= 0 ? formatCurrency(calculateRemainingBalance()) : '+' + formatCurrency(Math.abs(calculateRemainingBalance())) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Mensaje de saldo a favor -->
-            <div v-if="willHaveCredit()" class="mt-3 p-3 bg-green-100 border border-green-200 rounded-lg">
-              <div class="flex items-start">
-                <i class="fas fa-check-circle text-green-600 mr-2 mt-0.5"></i>
-                <div class="text-green-800">
-                  <p class="font-medium">Pago con saldo a favor</p>
-                  <p class="text-sm">
-                    El propietario abonará {{ formatCurrency(form.amount) }} y quedará con un
-                    <strong>saldo a favor de {{ formatCurrency(getCreditAmount()) }}</strong>
-                    para futuras expensas.
-                  </p>
+            <!-- QR Payment Section (Placeholder para futura funcionalidad) -->
+            <div v-if="form.payment_type_id && paymentTypes.find(t => t.id === form.payment_type_id)?.code === 'QR'" class="bg-primary-foreground/10 rounded-lg p-4 border border-primary-foreground/30">
+              <div class="flex items-center justify-center py-6">
+                <div class="text-center">
+                  <div class="w-16 h-16 bg-primary-foreground/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-qrcode text-2xl text-primary-foreground"></i>
+                  </div>
+                  <p class="text-primary-foreground/90 text-sm">QR Payment Integration</p>
+                  <p class="text-primary-foreground/70 text-xs mt-1">Próximamente disponible</p>
+                  <div class="mt-3 p-2 bg-primary-foreground/10 rounded text-xs">
+                    <p class="text-primary-foreground/80">API del Banco → QR Dinámico → Pago Instantáneo</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Mensaje de pago exacto -->
-            <div v-else-if="Math.abs(calculateRemainingBalance()) < 0.01" class="mt-3 p-3 bg-green-100 border border-green-200 rounded-lg">
-              <div class="flex items-center">
-                <i class="fas fa-check-circle text-green-600 mr-2"></i>
-                <span class="text-green-800 font-medium">Pago exacto - Liquidación completa</span>
+            <!-- Referencia -->
+            <div v-if="form.payment_type_id && paymentTypes.find(t => t.id === form.payment_type_id)?.code !== 'QR'">
+              <label class="block text-sm font-medium text-primary-foreground/80 mb-2">Referencia</label>
+              <input
+                v-model="form.reference"
+                type="text"
+                :placeholder="getReferencePlaceholder()"
+                class="w-full px-3 py-2 border border-primary-foreground/20 rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-primary-foreground/90 text-primary"
+              />
+            </div>
+
+            <!-- Resumen del Pago -->
+            <div v-if="form.amount > 0" class="bg-primary-foreground/10 rounded-lg p-4 space-y-3">
+              <h4 class="font-semibold text-primary-foreground">Resumen</h4>
+
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-primary-foreground/70">Saldo pendiente:</span>
+                <span class="font-medium text-primary-foreground">{{ formatCurrency(currentExpense.balance) }}</span>
+              </div>
+
+              <div class="flex justify-between items-center bg-primary-foreground/10 p-2 rounded">
+                <span class="font-semibold text-primary-foreground">Monto a pagar:</span>
+                <span class="font-bold text-xl text-primary-foreground">{{ formatCurrency(form.amount) }}</span>
+              </div>
+
+              <div v-if="willHaveCredit()" class="bg-green-500/20 rounded p-2">
+                <div class="flex items-center text-sm text-green-100">
+                  <i class="fas fa-check-circle mr-2"></i>
+                  <span>Saldo a favor: {{ formatCurrency(getCreditAmount()) }}</span>
+                </div>
+              </div>
+              <div v-else-if="Math.abs(calculateRemainingBalance()) < 0.01" class="bg-green-500/20 rounded p-2">
+                <div class="flex items-center text-sm text-green-100">
+                  <i class="fas fa-check-circle mr-2"></i>
+                  <span>Pago completo</span>
+                </div>
+              </div>
+              <div v-else class="bg-yellow-500/20 rounded p-2">
+                <div class="flex items-center text-sm text-yellow-100">
+                  <i class="fas fa-info-circle mr-2"></i>
+                  <span>Saldo restante: {{ formatCurrency(calculateRemainingBalance()) }}</span>
+                </div>
               </div>
             </div>
 
-            <!-- Mensaje de pago parcial -->
-            <div v-else class="mt-3 p-3 bg-yellow-100 border border-yellow-200 rounded-lg">
-              <div class="flex items-center">
-                <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
-                <span class="text-yellow-800">
-                  Quedará un saldo pendiente de {{ formatCurrency(calculateRemainingBalance()) }}
-                </span>
-              </div>
+            <!-- Botones -->
+            <div class="flex space-x-3 pt-4">
+              <Link
+                href="/pagos"
+                class="flex-1 px-4 py-3 border border-primary-foreground/30 rounded-lg text-center text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10 transition-colors"
+              >
+                Cancelar
+              </Link>
+              <button
+                type="submit"
+                :disabled="submitting || !isValidForm()"
+                class="flex-1 px-4 py-3 bg-primary-foreground text-primary rounded-lg text-sm font-bold hover:bg-primary-foreground/90 disabled:bg-muted disabled:text-muted-foreground transition-colors"
+              >
+                <i class="fas fa-check mr-2"></i>
+                {{ submitting ? 'Procesando...' : 'Registrar Pago' }}
+              </button>
             </div>
-          </div>
+          </form>
         </div>
 
-        <!-- Notas -->
-        <div v-if="currentExpense">
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Notas (Opcional)
+        <!-- Notas adicionales (debajo del card de pago) -->
+        <div v-if="currentExpense" class="mt-6 bg-card rounded-lg shadow p-6">
+          <label class="block text-sm font-medium-foreground mb-2">
+            <i class="fas fa-sticky-note mr-2 text-muted-foreground"></i>
+            Notas adicionales
           </label>
           <textarea
             v-model="form.notes"
             rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Notas adicionales sobre el pago..."
+            class="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-input text-foreground text-sm"
+            placeholder="Notas sobre el pago..."
           ></textarea>
         </div>
-
-        <!-- Botones -->
-        <div v-if="currentExpense" class="flex justify-end space-x-3 pt-4">
-          <Link
-            href="/pagos"
-            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Cancelar
-          </Link>
-          <button
-            type="submit"
-            :disabled="submitting || !isValidForm()"
-            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            <i class="fas fa-save mr-2"></i>
-            {{ submitting ? 'Registrando...' : 'Registrar Pago' }}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
   </AppLayout>
@@ -344,6 +337,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { fetchWithCsrf, refreshCsrfToken } from '@/utils/csrf'
+import { useNotification } from '@/composables/useNotification'
 import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
@@ -354,6 +348,8 @@ const props = defineProps({
   selectedOwner: Object,
   currentExpense: Object
 })
+
+const { showSuccess, showError, showWarning, showInfo } = useNotification()
 
 const form = reactive({
   receipt_number: props.nextReceiptNumber || '',
@@ -525,71 +521,65 @@ const submitPayment = async () => {
     } catch (e) {
       // Si no es JSON, probablemente es una página HTML de error
       if (text.includes('419') || text.includes('Page Expired') || text.includes('CSRF') || text.includes('token mismatch')) {
-        alert('La sesión ha expirado o el token CSRF es inválido. Intentando recargar el token...')
+        showError('Sesión expirada', 'La sesión ha expirado o el token CSRF es inválido.')
 
         // Intentar recargar el token CSRF sin recargar toda la página
         try {
           await refreshCsrfToken()
-          alert('Token recargado. Por favor, intenta registrar el pago nuevamente.')
+          showSuccess('Token recargado', 'Token CSRF recargado. Por favor, intenta registrar el pago nuevamente.')
           return
         } catch (refreshError) {
-          alert('Error recargando el token. Recargando la página completa...')
-          window.location.reload()
+          showError('Error al recargar token', 'No se pudo recargar el token. Recargando la página completa...')
+          setTimeout(() => {
+            window.location.reload()
+          }, 2000)
           return
         }
       } else {
         console.error('Respuesta no JSON:', text)
-        alert('Error inesperado del servidor. Por favor, recarga la página.')
-        window.location.reload()
+        showError('Error inesperado', 'El servidor devolvió una respuesta inesperada. Recargando la página...')
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
         return
       }
     }
 
     // Si la respuesta es un error de CSRF, intentar refrescar el token
     if (!result.success && result.message && result.message.includes('CSRF')) {
-      alert('Error de token CSRF. Intentando recargar...')
+      showError('Error de token CSRF', 'Intentando recargar el token...')
       try {
         await refreshCsrfToken()
-        alert('Token recargado. Por favor, intenta registrar el pago nuevamente.')
+        showSuccess('Token recargado', 'Por favor, intenta registrar el pago nuevamente.')
         return
       } catch (refreshError) {
-        alert('Error recargando el token. Recargando la página completa...')
-        window.location.reload()
+        showError('Error al recargar token', 'No se pudo recargar el token. Recargando la página completa...')
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
         return
       }
     }
 
     if (result.success) {
-      // Construir mensaje de éxito con información del período
-      let message = `Pago registrado exitosamente!\n\nRecibo: ${result.receipt_number}\n${result.allocation_result.message}`
+      // Mostrar notificación de éxito principal
+      showSuccess('Pago registrado exitosamente', `Recibo: ${result.receipt_number}`)
 
-      // Agregar información del período si está disponible
-      if (result.allocation_result.period_summary) {
-        const period = result.allocation_result.period_summary
-        message += `\n\n\n--- Resumen del Período ---\n`
-        message += `Período: ${period.period_name}\n`
-        message += `Total Generado: ${formatCurrency(period.total_generated)}\n`
-        message += `Total Cobrado (antes): ${formatCurrency(period.total_collected_before)}\n`
-        message += `Total Cobrado (después): ${formatCurrency(period.total_collected_after)}\n`
-        message += `Porcentaje de Cobro: ${period.collection_percentage.toFixed(2)}%\n`
-        message += `Saldo Pendiente: ${formatCurrency(period.pending_amount)}`
-      }
-
-      alert(message)
-
-      // Redirigir al detalle del pago
-      router.visit(`/pagos/${result.payment_id}`)
+      // Redirigir al detalle del pago después de mostrar la notificación
+      setTimeout(() => {
+        router.visit(`/pagos/${result.payment_id}`)
+      }, 3000)
     } else {
-      alert(result.message || 'Error al registrar el pago')
+      showError('Error al registrar pago', result.message || 'Ocurrió un error desconocido')
     }
   } catch (error) {
     console.error('Error en la petición:', error)
 
     // Verificar si es un error de red o del servidor
     if (error.name === 'TypeError' || error.message.includes('fetch')) {
-      alert('Error de conexión. Verifica tu conexión a internet.')
+      showError('Error de conexión', 'No se pudo conectar al servidor. Verifica tu conexión a internet.')
     } else {
-      alert('Error al registrar el pago. Por favor, recarga la página e intenta nuevamente.')
+      showError('Error al procesar', 'Ocurrió un error al registrar el pago. Por favor, intenta nuevamente.')
     }
   } finally {
     submitting.value = false
