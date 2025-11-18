@@ -11,9 +11,10 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Eye, Lock, AlertTriangle } from 'lucide-vue-next';
+import { Eye, Lock, AlertTriangle, Receipt, Plus } from 'lucide-vue-next';
 import { useNotification } from '@/composables/useNotification';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 // ==========================================
 // TIPOS
@@ -47,11 +48,14 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
 const { showSuccess, showError } = useNotification();
 
-// Estado para el diálogo de confirmación
+// Estado para diálogos
 const showConfirmDialog = ref(false);
+const showCreateNextPeriodDialog = ref(false);
 const periodToClose = ref<ExpensePeriod | null>(null);
+const nextPeriodData = ref<any>(null);
 
 // ==========================================
 // HELPERS
@@ -83,6 +87,10 @@ const viewPeriod = (period: ExpensePeriod) => {
   router.visit(`/expense-periods/${period.id}`);
 };
 
+const viewReceipts = (period: ExpensePeriod) => {
+  router.visit(`/expense-periods/${period.id}/receipts`);
+};
+
 const closePeriod = (period: ExpensePeriod) => {
   periodToClose.value = period;
   showConfirmDialog.value = true;
@@ -96,9 +104,17 @@ const confirmClosePeriod = () => {
     {},
     {
       preserveScroll: true,
-      onSuccess: () => {
+      onSuccess: (resPage) => {
         showSuccess('Período cerrado exitosamente');
         showConfirmDialog.value = false;
+
+        // Verificar si se debe mostrar diálogo para crear siguiente período
+        const flash = (resPage.props.flash as any) || {};
+        if (flash.showCreateNextPeriod && flash.nextPeriod) {
+          nextPeriodData.value = flash.nextPeriod;
+          showCreateNextPeriodDialog.value = true;
+        }
+
         periodToClose.value = null;
       },
       onError: (errors) => {
@@ -106,6 +122,21 @@ const confirmClosePeriod = () => {
       },
     }
   );
+};
+
+const createNextPeriod = () => {
+  if (!nextPeriodData.value) return;
+
+  router.post('/expense-periods', nextPeriodData.value, {
+    onSuccess: () => {
+      showSuccess('Siguiente período creado exitosamente');
+      showCreateNextPeriodDialog.value = false;
+      nextPeriodData.value = null;
+    },
+    onError: (errors) => {
+      showError(errors.error || 'Error al crear el siguiente período');
+    }
+  });
 };
 
 const cancelClosePeriod = () => {
@@ -253,13 +284,22 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div class="flex items-center gap-2">
-                    <Button
+                    <!-- <Button
                       variant="ghost"
                       size="sm"
                       @click="viewPeriod(period)"
                       title="Ver detalle"
                     >
                       <Eye class="h-4 w-4" />
+                    </Button> -->
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      @click="viewReceipts(period)"
+                      title="Ver recibos del período"
+                      class="text-blue-600 hover:text-blue-700"
+                    >
+                      <Receipt class="h-4 w-4" />
                     </Button>
                     <Button
                       v-if="period.status === 'open'"
@@ -339,7 +379,7 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
               {{ period.property_expenses_count }} propiedades
             </div>
             <div class="flex items-center gap-1">
-              <Button
+              <!-- <Button
                 variant="ghost"
                 size="sm"
                 @click="viewPeriod(period)"
@@ -347,6 +387,15 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
                 class="h-8 w-8 p-0"
               >
                 <Eye class="h-3 w-3" />
+              </Button> -->
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="viewReceipts(period)"
+                title="Ver recibos del período"
+                class="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+              >
+                <Receipt class="h-3 w-3" />
               </Button>
               <Button
                 v-if="period.status === 'open'"
@@ -463,6 +512,70 @@ const getCollectionTooltip = (period: ExpensePeriod): string => {
             class="bg-orange-600 hover:bg-orange-700 text-white"
           >
             Cerrar Período
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Diálogo para crear siguiente período -->
+    <Dialog v-model:open="showCreateNextPeriodDialog">
+      <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Plus class="h-5 w-5 text-green-600" />
+            Crear Siguiente Período
+          </DialogTitle>
+        </DialogHeader>
+
+        <div class="py-4" v-if="nextPeriodData">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+              <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="text-green-800">
+                <p class="font-medium">Período anterior cerrado correctamente</p>
+                <p class="text-sm mt-1">Ahora puedes crear el siguiente período automáticamente.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Año</label>
+                <div class="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                  {{ nextPeriodData.year }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Mes</label>
+                <div class="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                  {{ getMonthName(nextPeriodData.month) }}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Fecha del Período</label>
+              <div class="mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                {{ new Date(nextPeriodData.period_date).toLocaleDateString('es-BO') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            @click="showCreateNextPeriodDialog = false"
+          >
+            Cancelar
+          </Button>
+          <Button
+            @click="createNextPeriod"
+            class="bg-green-600 hover:bg-green-700"
+          >
+            Crear Período
           </Button>
         </DialogFooter>
       </DialogContent>

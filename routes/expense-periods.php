@@ -14,5 +14,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
         ->name('expense-periods.show');
     Route::post('expense-periods/{expensePeriod}/close', [ExpensePeriodController::class, 'close'])
         ->name('expense-periods.close');
+    Route::get('expense-periods/{expensePeriod}/receipts', [ExpensePeriodController::class, 'receipts'])
+        ->name('expense-periods.receipts');
 });
 

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExpensePeriod;
+use App\Models\Payment;
+use App\Models\PropertyExpense;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -120,6 +122,64 @@ public function store(Request $request)
             ]);
         });
 
-        return back()->with('success', 'Período cerrado exitosamente.');
+        // Calcular siguiente período sugerido
+            $nextPeriod = $this->calculateNextPeriod($expensePeriod);
+
+        return back()->with([
+            'success' => 'Período cerrado exitosamente.',
+            'showCreateNextPeriod' => true,
+            'nextPeriod' => $nextPeriod
+        ]);
+    }
+
+    /**
+     * Ver todos los recibos de un período
+     */
+    public function receipts(ExpensePeriod $expensePeriod)
+    {
+        $receipts = Payment::where('expense_period_id', $expensePeriod->id)
+            ->where('status', 'active')
+            ->with(['paymentType', 'propietario', 'propiedad'])
+            ->orderBy('payment_date', 'desc')
+            ->get();
+
+        // Calcular totales
+        $totalAmount = $receipts->sum('amount');
+        $totalReceipts = $receipts->count();
+
+        return Inertia::render('ExpensePeriods/Receipts', [
+            'period' => $expensePeriod,
+            'receipts' => $receipts,
+            'statistics' => [
+                'total_receipts' => $totalReceipts,
+                'total_amount' => $totalAmount,
+                'payment_types' => $receipts->groupBy('payment_type.name')->map(function ($group) {
+                    return [
+                        'count' => $group->count(),
+                        'total' => $group->sum('amount')
+                    ];
+                })
+            ]
+        ]);
+    }
+
+    /**
+     * Calcular el siguiente período sugerido
+     */
+    private function calculateNextPeriod(ExpensePeriod $period): array
+    {
+        $nextMonth = $period->month + 1;
+        $nextYear = $period->year;
+
+        if ($nextMonth > 12) {
+            $nextMonth = 1;
+            $nextYear++;
+        }
+
+        return [
+            'year' => $nextYear,
+            'month' => $nextMonth,
+            'period_date' => "{$nextYear}-" . str_pad($nextMonth, 2, '0', STR_PAD_LEFT) . "-01"
+        ];
     }
 }
