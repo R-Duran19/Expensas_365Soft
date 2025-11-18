@@ -391,17 +391,17 @@ const guardarLecturas = async () => {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div class="rounded-md border">
+                        <!-- Desktop Table -->
+                        <div class="hidden lg:block rounded-md border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead class="w-32">Medidor</TableHead>
                                         <TableHead>Propiedad</TableHead>
-                                        <TableHead>Ubicación</TableHead>
+                                        <TableHead class="hidden xl:table-cell">Ubicación</TableHead>
                                         <TableHead class="text-right w-32">Lectura Anterior</TableHead>
                                         <TableHead class="w-40">Lectura Actual *</TableHead>
                                         <TableHead class="text-right w-32">Consumo</TableHead>
-                                        <!-- <TableHead class="w-48">Observaciones</TableHead> -->
                                         <TableHead class="w-24"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -412,7 +412,7 @@ const guardarLecturas = async () => {
                                             {{ medidor.numero_medidor }}
                                         </TableCell>
                                         <TableCell>{{ medidor.propiedad }}</TableCell>
-                                        <TableCell class="text-sm text-muted-foreground">
+                                        <TableCell class="hidden xl:table-cell text-sm text-muted-foreground">
                                             {{ medidor.ubicacion }}
                                         </TableCell>
                                         <TableCell class="text-right">
@@ -422,8 +422,7 @@ const guardarLecturas = async () => {
                                                 </span>
                                                 <span v-if="medidor.fecha_ultima_lectura"
                                                     class="text-xs text-muted-foreground">
-                                                    {{ new
-                                                    Date(medidor.fecha_ultima_lectura).toLocaleDateString('es-BO') }}
+                                                    {{ new Date(medidor.fecha_ultima_lectura).toLocaleDateString('es-BO') }}
                                                 </span>
                                             </div>
                                         </TableCell>
@@ -448,10 +447,6 @@ const guardarLecturas = async () => {
                                             </span>
                                             <span v-else class="text-muted-foreground">-</span>
                                         </TableCell>
-                                        <!-- <TableCell>
-                                            <Input v-model="lecturas.get(medidor.id)!.observaciones"
-                                                placeholder="Opcional" maxlength="100" />
-                                        </TableCell> -->
                                         <TableCell>
                                             <Button v-if="lecturas.get(medidor.id)?.lectura_actual !== null"
                                                 variant="ghost" size="icon" @click="limpiarLectura(medidor.id)">
@@ -461,12 +456,92 @@ const guardarLecturas = async () => {
                                     </TableRow>
 
                                     <TableRow v-if="medidoresFiltrados.length === 0">
-                                        <TableCell colspan="8" class="text-center py-8 text-muted-foreground">
+                                        <TableCell colspan="7" class="text-center py-8 text-muted-foreground">
                                             No se encontraron medidores
                                         </TableCell>
                                     </TableRow>
                                 </TableBody>
                             </Table>
+                        </div>
+
+                        <!-- Mobile Cards -->
+                        <div class="lg:hidden space-y-4">
+                            <div v-for="medidor in medidoresFiltrados" :key="medidor.id"
+                                class="bg-white border rounded-lg p-4 transition-shadow"
+                                :class="{
+                                    'border-red-300 bg-red-50': !lecturas.get(medidor.id)?.valida,
+                                    'border-gray-200 hover:shadow-md': lecturas.get(medidor.id)?.valida
+                                }">
+
+                                <!-- Header del card -->
+                                <div class="flex justify-between items-start mb-3">
+                                    <div class="flex-1">
+                                        <h3 class="font-semibold text-lg text-gray-900">
+                                            {{ medidor.numero_medidor }}
+                                        </h3>
+                                        <p class="text-sm text-gray-600">{{ medidor.propiedad }}</p>
+                                        <p class="text-xs text-muted-foreground">{{ medidor.ubicacion }}</p>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <div v-if="medidor.ultima_lectura !== null"
+                                            class="text-right mr-2">
+                                            <p class="text-xs text-muted-foreground">Anterior</p>
+                                            <p class="font-medium text-sm">{{ medidor.ultima_lectura }} m³</p>
+                                        </div>
+                                        <Button v-if="lecturas.get(medidor.id)?.lectura_actual !== null"
+                                            variant="ghost" size="sm" @click="limpiarLectura(medidor.id)"
+                                            class="h-8 w-8 p-0">
+                                            <Trash2 class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <!-- Formulario de lectura -->
+                                <div class="space-y-3">
+                                    <div>
+                                        <Label class="text-sm font-medium">Lectura Actual *</Label>
+                                        <Input v-model.number="lecturas.get(medidor.id)!.lectura_actual"
+                                            type="number" min="0" step="0.001" placeholder="0.000"
+                                            @input="validarLectura(medidor.id)"
+                                            :class="{
+                                                'border-red-500 bg-red-50': !lecturas.get(medidor.id)?.valida,
+                                                'text-lg font-medium': lecturas.get(medidor.id)?.lectura_actual !== null
+                                            }"
+                                            class="mt-1" />
+                                    </div>
+
+                                    <!-- Consumo calculado -->
+                                    <div v-if="calcularConsumo(medidor.id) !== null"
+                                        class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                        <span class="text-sm text-gray-600">Consumo:</span>
+                                        <span class="font-bold text-lg"
+                                            :class="{
+                                'text-green-600': calcularConsumo(medidor.id)! >= 0 && calcularConsumo(medidor.id)! <= 50,
+                                'text-yellow-600': calcularConsumo(medidor.id)! > 50 && calcularConsumo(medidor.id)! <= 100,
+                                'text-red-600': calcularConsumo(medidor.id)! > 100
+                              }">
+                                            {{ calcularConsumo(medidor.id) }} m³
+                                        </span>
+                                    </div>
+
+                                    <!-- Mensaje de error -->
+                                    <div v-if="lecturas.get(medidor.id)?.error"
+                                        class="p-2 rounded text-sm"
+                                        :class="lecturas.get(medidor.id)?.valida ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'">
+                                        {{ lecturas.get(medidor.id)?.error }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Empty state mobile -->
+                            <div v-if="medidoresFiltrados.length === 0"
+                                class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                <div class="text-gray-500">
+                                    <Search class="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                                    <h3 class="text-lg font-medium mb-2">No se encontraron medidores</h3>
+                                    <p class="text-sm">Intenta con otra búsqueda</p>
+                                </div>
+                            </div>
                         </div>
 
                         <div v-if="totalLecturas === 0"
@@ -485,14 +560,15 @@ const guardarLecturas = async () => {
                 </Card>
 
                 <!-- Botones de Acción -->
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="router.visit('/lecturas')">
+                <div class="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+                    <Button variant="outline" @click="router.visit('/lecturas')" class="w-full sm:w-auto">
                         <ArrowLeft class="h-4 w-4 mr-2" />
                         Cancelar
                     </Button>
-                    <Button @click="guardarLecturas" :disabled="!formularioValido || enviando">
+                    <Button @click="guardarLecturas" :disabled="!formularioValido || enviando" class="w-full sm:w-auto">
                         <Save class="h-4 w-4 mr-2" />
-                        {{ enviando ? 'Guardando...' : `Guardar ${totalLecturas} Lectura(s)` }}
+                        <span class="hidden sm:inline">{{ enviando ? 'Guardando...' : `Guardar ${totalLecturas} Lectura(s)` }}</span>
+                        <span class="sm:hidden">{{ enviando ? 'Guardando...' : 'Guardar' }}</span>
                     </Button>
                 </div>
 

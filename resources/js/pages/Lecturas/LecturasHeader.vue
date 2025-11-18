@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileSpreadsheet, Filter, X, Gauge, Receipt } from 'lucide-vue-next';
+import { Plus, FileSpreadsheet, Filter, X, Gauge, Receipt, Menu } from 'lucide-vue-next';
 
 interface Filtros {
   period_id?: number;
@@ -39,6 +39,12 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'create-lectura': [];
 }>();
+
+const mobileMenuOpen = ref(false);
+
+const toggleMobileMenu = () => {
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+};
 
 // ==========================================
 // ESTADO LOCAL DE FILTROS
@@ -138,37 +144,81 @@ onMounted(() => {
 <template>
   <Card>
     <CardHeader>
-      <div class="flex items-center justify-between">
-        <div class="space-y-1">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <!-- Título y descripción -->
+        <div class="flex-1 space-y-1">
           <CardTitle class="flex items-center gap-2">
-            <Gauge class="h-6 w-6" />
-            Lecturas de Medidores
+            <Gauge class="h-5 w-5 sm:h-6 sm:w-6" />
+            <span class="text-lg sm:text-xl">Lecturas de Medidores</span>
           </CardTitle>
-          <CardDescription>
+          <CardDescription class="text-sm sm:text-base">
             Gestiona las lecturas mensuales de consumo de agua
           </CardDescription>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- Desktop: Todos los botones visibles -->
+        <div class="hidden sm:flex sm:items-center sm:gap-2 sm:flex-shrink-0">
           <!-- Botón Facturas de Medidores Principales -->
           <Link href="/facturas-medidores-principales">
-            <Button variant="outline" size="default" class="border-blue-200 text-blue-700 hover:bg-blue-50">
+            <Button variant="outline" size="sm" class="border-blue-200 text-blue-700 hover:bg-blue-50 whitespace-nowrap">
               <Receipt class="h-4 w-4 mr-2" />
-              Fact. Medidores
+              <span class="hidden lg:inline">Fact. Medidores</span>
+              <span class="lg:hidden">Facturas</span>
             </Button>
           </Link>
 
-          <!-- Botón Registro Masivo usando Link de Inertia -->
+          <!-- Botón Registro Masivo -->
           <Link href="/lecturas/create">
-            <Button variant="outline" size="default">
+            <Button variant="outline" size="sm" class="whitespace-nowrap">
               <FileSpreadsheet class="h-4 w-4 mr-2" />
-              Registro Masivo
+              <span class="hidden lg:inline">Registro Masivo</span>
+              <span class="lg:hidden">Masivo</span>
             </Button>
           </Link>
 
           <!-- Botón Nueva Lectura -->
-          <Button @click="emit('create-lectura')">
+          <Button @click="emit('create-lectura')" size="sm" class="whitespace-nowrap">
             <Plus class="h-4 w-4 mr-2" />
+            <span class="hidden lg:inline">Nueva Lectura</span>
+            <span class="lg:hidden">Nueva</span>
+          </Button>
+        </div>
+
+        <!-- Mobile: Botón de menú hamburguesa -->
+        <div class="sm:hidden">
+          <Button
+            @click="toggleMobileMenu"
+            variant="outline"
+            size="sm"
+            class="p-2"
+          >
+            <Menu class="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu -->
+      <div
+        v-if="mobileMenuOpen"
+        class="sm:hidden mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-lg"
+      >
+        <div class="space-y-3">
+          <Link href="/facturas-medidores-principales" class="block">
+            <Button variant="outline" class="w-full justify-start border-blue-200 text-blue-700 hover:bg-blue-50" size="sm">
+              <Receipt class="h-4 w-4 mr-3" />
+              Facturas Medidores
+            </Button>
+          </Link>
+
+          <Link href="/lecturas/create" class="block">
+            <Button variant="outline" class="w-full justify-start" size="sm">
+              <FileSpreadsheet class="h-4 w-4 mr-3" />
+              Registro Masivo
+            </Button>
+          </Link>
+
+          <Button @click="emit('create-lectura')" class="w-full justify-start" size="sm">
+            <Plus class="h-4 w-4 mr-3" />
             Nueva Lectura
           </Button>
         </div>
@@ -195,7 +245,7 @@ onMounted(() => {
       </div>
       <!-- Filtros -->
       <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <!-- Filtro por Período -->
           <div class="space-y-2">
             <Label for="periodo">Período</Label>

@@ -315,58 +315,57 @@
         </div>
       </div>
     </div>
-    </div>
-
-    <!-- Modal de confirmación de anulación -->
-    <div
-      v-if="showCancelModal"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-    >
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <h3 class="text-lg leading-6 font-medium text-gray-900">
-            Anular Pago
-          </h3>
-          <div class="mt-2 px-7 py-3">
-            <p class="text-sm text-gray-500">
-              ¿Está seguro que desea anular el pago {{ selectedPayment?.receipt_number }}?
-            </p>
-            <p class="text-sm text-gray-500 mt-2">
-              Esta acción revertirá todas las imputaciones y creará un movimiento de caja de reversión.
-            </p>
-            <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Motivo de anulación
-              </label>
-              <textarea
-                v-model="cancellationReason"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingrese el motivo..."
-              ></textarea>
+      </div>
+  
+      <!-- Modal de confirmación de anulación -->
+      <div
+        v-if="showCancelModal"
+        class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      >
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+              Anular Pago
+            </h3>
+            <div class="mt-2 px-7 py-3">
+              <p class="text-sm text-gray-500">
+                ¿Está seguro que desea anular el pago {{ selectedPayment?.receipt_number }}?
+              </p>
+              <p class="text-sm text-gray-500 mt-2">
+                Esta acción revertirá todas las imputaciones y creará un movimiento de caja de reversión.
+              </p>
+              <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Motivo de anulación
+                </label>
+                <textarea
+                  v-model="cancellationReason"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ingrese el motivo..."
+                ></textarea>
+              </div>
             </div>
-          </div>
-          <div class="items-center px-4 py-3">
-            <button
-              @click="cancelPayment"
-              :disabled="!cancellationReason || cancelling"
-              class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {{ cancelling ? 'Anulando...' : 'Anular' }}
-            </button>
-            <button
-              @click="showCancelModal = false"
-              class="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-24 hover:bg-gray-400"
-            >
-              Cancelar
-            </button>
+            <div class="items-center px-4 py-3">
+              <button
+                @click="cancelPayment"
+                :disabled="!cancellationReason || cancelling"
+                class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {{ cancelling ? 'Anulando...' : 'Anular' }}
+              </button>
+              <button
+                @click="showCancelModal = false"
+                class="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-24 hover:bg-gray-400"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-  </AppLayout>
-</template>
+    </AppLayout>
+  </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
