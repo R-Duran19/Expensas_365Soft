@@ -252,6 +252,20 @@
           <div class="flex items-center justify-between">
             <div class="flex-1 flex justify-between sm:hidden">
               <!-- Mobile pagination -->
+              <Link
+                v-if="expenses.prev_page_url"
+                :href="expenses.prev_page_url"
+                class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Anterior
+              </Link>
+              <Link
+                v-if="expenses.next_page_url"
+                :href="expenses.next_page_url"
+                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Siguiente
+              </Link>
             </div>
             <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
@@ -263,6 +277,7 @@
                   de
                   <span class="font-medium">{{ expenses.total }}</span>
                   resultados
+                  <span class="text-gray-500">• Página {{ expenses.current_page }} de {{ expenses.last_page }}</span>
                 </p>
               </div>
               <div>
@@ -285,6 +300,29 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                   </span>
+
+                  <!-- Page numbers -->
+                  <template v-for="page in getVisiblePages()" :key="page">
+                    <span
+                      v-if="page === '...'"
+                      class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                    >
+                      ...
+                    </span>
+                    <Link
+                      v-else-if="page !== expenses.current_page"
+                      :href="getPageUrl(page)"
+                      class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {{ page }}
+                    </Link>
+                    <span
+                      v-else
+                      class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600"
+                    >
+                      {{ page }}
+                    </span>
+                  </template>
 
                   <!-- Next page link -->
                   <Link
@@ -378,6 +416,9 @@ const search = debounce(() => {
   } else {
     params.delete('status')
   }
+
+  // Resetear a la primera página cuando se busca
+  params.delete('page')
 
   router.get(`${window.location.pathname}?${params.toString()}`, {}, {
     preserveState: true,
@@ -476,5 +517,56 @@ const getExpenseStatusText = (status) => {
     default:
       return status
   }
+}
+
+// Funciones para paginación mejorada
+const getVisiblePages = () => {
+  const current = props.expenses.current_page
+  const last = props.expenses.last_page
+  const delta = 2 // número de páginas a mostrar antes y después de la actual
+
+  if (last <= 7) {
+    return Array.from({ length: last }, (_, i) => i + 1)
+  }
+
+  let range = []
+  let rangeWithDots = []
+  let l
+
+  for (let i = 1; i <= last; i++) {
+    if (i === 1 || i === last || (i >= current - delta && i <= current + delta)) {
+      range.push(i)
+    }
+  }
+
+  range.forEach((i) => {
+    if (l) {
+      if (i - l === 2) {
+        rangeWithDots.push(l + 1)
+      } else if (i - l !== 1) {
+        rangeWithDots.push('...')
+      }
+    }
+    rangeWithDots.push(i)
+    l = i
+  })
+
+  return rangeWithDots
+}
+
+const getPageUrl = (page) => {
+  const url = new URL(window.location.href)
+
+  // Preservar todos los parámetros existentes excepto 'page'
+  for (const [key, value] of url.searchParams) {
+    if (key !== 'page') {
+      // Los parámetros ya están en la URL, no necesitamos hacer nada
+    }
+  }
+
+  // Establecer la nueva página
+  url.searchParams.set('page', page)
+
+  return url.pathname + url.search
 }
 </script>

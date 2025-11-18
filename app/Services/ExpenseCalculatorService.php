@@ -176,6 +176,24 @@ class ExpenseCalculatorService
                 ];
             }
 
+            // Obtener la propiedad principal (es_propietario_principal = true)
+            $primaryProperty = $propiedades->first(function ($prop) use ($propietarioId) {
+                $isPrincipal = DB::table('propietario_propiedad')
+                    ->where('propietario_id', $propietarioId)
+                    ->where('propiedad_id', $prop->id)
+                    ->whereNull('fecha_fin')
+                    ->where('es_propietario_principal', true)
+                    ->exists();
+
+                return $isPrincipal;
+            });
+
+            // Si no hay propiedad principal, usar la primera propiedad (fallback)
+            if (!$primaryProperty) {
+                Log::warning("Propietario {$propietarioId} no tiene propiedad principal, usando primera propiedad como fallback");
+                $primaryProperty = $propiedades->first();
+            }
+
             // Variables para acumular los totales de los detalles ya redondeados
             $propertiesDetails = [];
             $totalBaseAmountFromDetails = 0;
@@ -278,7 +296,7 @@ class ExpenseCalculatorService
                 'success' => true,
                 'propietario_id' => $propietario->id,
                 'propietario_nombre' => $propietario->nombre_completo,
-                'primary_property_id' => $propiedades->first()->id,
+                'primary_property_id' => $primaryProperty->id,
                 'properties_count' => $propiedades->count(),
                 'properties_summary' => $propertiesSummary,
                 'base_amount' => $totalBaseAmount,

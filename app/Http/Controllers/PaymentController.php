@@ -492,59 +492,118 @@ class PaymentController extends Controller
     /**
      * Obtener propietarios con expensas generadas para un período específico
      */
-    public function getOwnersWithExpenses($periodId): JsonResponse
+    public function getOwnersWithExpenses($periodId, Request $request): JsonResponse
     {
         try {
-            // Obtener todos los propietarios que tienen expensas en el período
-            $owners = DB::table('property_expenses as pe')
-                ->join('propietarios as p', 'pe.propietario_id', '=', 'p.id')
-                ->join('expense_periods as ep', 'pe.expense_period_id', '=', 'ep.id')
-                ->leftJoin('propiedades as pr', 'pe.propiedad_id', '=', 'pr.id')
-                ->where('pe.expense_period_id', $periodId)
-                ->where('p.activo', true)
-                ->select([
-                    'p.id',
-                    'p.nombre_completo',
-                    'p.ci',
-                    'p.telefono',
-                    DB::raw('COUNT(DISTINCT pe.id) as expenses_count'),
-                    DB::raw('SUM(pe.balance) as total_debt'),
-                    DB::raw('COUNT(DISTINCT pr.id) as propiedades_count')
-                ])
-                ->groupBy('p.id', 'p.nombre_completo', 'p.ci', 'p.telefono')
-                ->orderBy('p.nombre_completo')
-                ->get();
+            $search = $request->get('search', '');
+            $page = $request->get('page', 1);
+            $perPage = 15;
 
-            // Obtener las expensas detalladas para cada propietario
-            $ownersWithExpenses = $owners->map(function ($owner) use ($periodId) {
-                $expenses = PropertyExpense::where('propietario_id', $owner->id)
-                    ->where('expense_period_id', $periodId)
-                    ->with(['propiedad'])
-                    ->get();
+            // Obtener TODAS las expensas con deuda en el período (sin paginar)
+            $query = PropertyExpense::with(['propiedad', 'propiedad.propietarios'])
+                ->where('expense_period_id', $periodId)
+                ->where('balance', '>', 0);
 
-                return [
-                    'id' => $owner->id,
-                    'nombre_completo' => $owner->nombre_completo,
-                    'ci' => $owner->ci,
-                    'telefono' => $owner->telefono,
-                    'expenses_count' => (int) $owner->expenses_count,
-                    'total_debt' => (float) $owner->total_debt,
-                    'propiedades_count' => (int) $owner->propiedades_count,
-                    'expenses' => $expenses->toArray(),
-                    'propiedades' => $expenses->map(function ($expense) {
-                        return $expense->propiedad ? [
-                            'id' => $expense->propiedad->id,
-                            'codigo' => $expense->propiedad->codigo,
-                            'ubicacion' => $expense->propiedad->ubicacion
-                        ] : null;
-                    })->filter()->toArray()
+            // Búsqueda global
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('propiedad', function ($prop) use ($search) {
+                        $prop->where('codigo', 'like', "%{$search}%")
+                             ->orWhere('ubicacion', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('propiedad.propietarios', function ($prop) use ($search) {
+                        $prop->where('propietario_propiedad.es_propietario_principal', true)
+                             ->whereNull('propietario_propiedad.fecha_fin')
+                             ->where('propietarios.nombre_completo', 'like', "%{$search}%")
+                             ->orWhere('propietarios.ci', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            // Obtener TODAS las expensas que coinciden con la búsqueda
+            $allExpenses = $query->orderBy('created_at', 'desc')->get();
+
+            // Agrupar por propietario principal
+            $ownersData = [];
+            foreach ($allExpenses as $expense) {
+                // Obtener el propietario principal de la propiedad
+                $propietarioPrincipal = $expense->propiedad->propietarioPrincipal();
+
+                if (!$propietarioPrincipal || !$propietarioPrincipal->activo) {
+                    continue; // Skip si no hay propietario principal o no está activo
+                }
+
+                $ownerId = $propietarioPrincipal->id;
+
+                if (!isset($ownersData[$ownerId])) {
+                    $ownersData[$ownerId] = [
+                        'id' => $propietarioPrincipal->id,
+                        'nombre_completo' => $propietarioPrincipal->nombre_completo,
+                        'ci' => $propietarioPrincipal->ci,
+                        'telefono' => $propietarioPrincipal->telefono,
+                        'expenses_count' => 0,
+                        'total_debt' => 0,
+                        'propiedades_count' => 0,
+                        'expenses' => [],
+                        'propiedades' => []
+                    ];
+                }
+
+                // Acumular datos
+                $ownersData[$ownerId]['expenses_count']++;
+                $ownersData[$ownerId]['total_debt'] += $expense->balance;
+
+                // Evitar duplicar propiedades
+                $propertyExists = collect($ownersData[$ownerId]['propiedades'])
+                    ->contains('id', $expense->propiedad->id);
+
+                if (!$propertyExists) {
+                    $ownersData[$ownerId]['propiedades_count']++;
+                    $ownersData[$ownerId]['propiedades'][] = [
+                        'id' => $expense->propiedad->id,
+                        'codigo' => $expense->propiedad->codigo,
+                        'ubicacion' => $expense->propiedad->ubicacion
+                    ];
+                }
+
+                // Agregar expensa
+                $ownersData[$ownerId]['expenses'][] = [
+                    'id' => $expense->id,
+                    'propiedad' => [
+                        'id' => $expense->propiedad->id,
+                        'codigo' => $expense->propiedad->codigo,
+                        'ubicacion' => $expense->propiedad->ubicacion
+                    ],
+                    'balance' => $expense->balance,
+                    'status' => $expense->status,
+                    'total_amount' => $expense->total_amount
                 ];
-            });
+            }
+
+            // Ordenar propietarios alfabéticamente
+            $owners = collect(array_values($ownersData))->sortBy('nombre_completo')->values();
+
+            // Ahora aplicamos paginación a los propietarios agrupados
+            $totalOwners = $owners->count();
+            $totalPages = ceil($totalOwners / $perPage);
+            $currentPage = min($page, max(1, $totalPages)); // Validar página
+            $offset = ($currentPage - 1) * $perPage;
+
+            $paginatedOwners = $owners->slice($offset, $perPage)->values();
+
+            // Log para debugging
+            Log::info("Paginación de propietarios - Total expensas: {$allExpenses->count()}, Total propietarios únicos: {$totalOwners}, Páginas: {$totalPages}");
 
             return response()->json([
                 'success' => true,
-                'owners' => $ownersWithExpenses,
-                'total_owners' => $ownersWithExpenses->count()
+                'owners' => $paginatedOwners,
+                'pagination' => [
+                    'current_page' => $currentPage,
+                    'total_pages' => $totalPages,
+                    'per_page' => $perPage,
+                    'total' => $totalOwners,
+                    'has_more' => $currentPage < $totalPages
+                ]
             ]);
 
         } catch (\Exception $e) {

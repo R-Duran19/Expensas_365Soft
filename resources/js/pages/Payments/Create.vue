@@ -1,4 +1,5 @@
 <template>
+  <AppLayout>
   <div class="p-6 space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -336,12 +337,14 @@
       </form>
     </div>
   </div>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { fetchWithCsrf, refreshCsrfToken } from '@/utils/csrf'
+import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
   paymentTypes: Array,

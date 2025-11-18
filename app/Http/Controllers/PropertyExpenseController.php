@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Models\Lectura;
 
 class PropertyExpenseController extends \Illuminate\Routing\Controller
 {
@@ -58,7 +59,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
 
         $period = ExpensePeriod::findOrFail($request->period_id);
 
-        $query = PropertyExpense::with(['propiedad', 'propietario', 'inquilino'])
+        $query = PropertyExpense::with(['propiedad', 'inquilino'])
             ->where('expense_period_id', $request->period_id);
 
         // Filtros
@@ -69,23 +70,32 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
+                // Buscar por código o ubicación de propiedad
                 $q->whereHas('propiedad', function ($prop) use ($search) {
                     $prop->where('codigo', 'like', "%{$search}%")
                          ->orWhere('ubicacion', 'like', "%{$search}%");
-                })->orWhereHas('propietario', function ($prop) use ($search) {
-                    $prop->where('nombre_completo', 'like', "%{$search}%");
+                })
+                // Buscar por nombre del propietario principal
+                ->orWhereHas('propiedad.propietarios', function ($prop) use ($search) {
+                    $prop->where('propietario_propiedad.es_propietario_principal', true)
+                         ->whereNull('propietario_propiedad.fecha_fin')
+                         ->where('propietarios.nombre_completo', 'like', "%{$search}%");
                 });
             });
         }
 
         $expenses = $query->orderBy('created_at', 'desc')
-            ->paginate(50)
+            ->paginate(15)
             ->through(function ($expense) {
+                // Obtener el propietario principal de la propiedad
+                $propietarioPrincipal = $expense->propiedad->propietarioPrincipal();
+
                 return [
                     'id' => $expense->id,
                     'propiedad_codigo' => $expense->propiedad->codigo,
                     'propiedad_ubicacion' => $expense->propiedad->ubicacion,
-                    'propietario_nombre' => $expense->propietario->nombre_completo ?? 'N/A',
+                    'propietario_nombre' => $propietarioPrincipal?->nombre_completo ?? 'N/A',
+                    'propietario_id' => $propietarioPrincipal?->id,
                     'inquilino_nombre' => $expense->inquilino?->nombre_completo,
                     'facturar_a' => $expense->facturar_a,
                     'base_amount' => $expense->base_amount,
@@ -129,22 +139,31 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
      */
     public function create(Request $request): Response
     {
-        $periods = ExpensePeriod::withCount('propertyExpenses')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->get();
+        // Obtener el período activo automáticamente
+        $activePeriod = ExpensePeriod::where('status', 'open')->first();
+
+        if (!$activePeriod) {
+            return Inertia::render('PropertyExpenses/Generate', [
+                'error' => 'No hay ningún período activo para generar expensas. Por favor, abra un nuevo período.',
+                'period' => null,
+            ]);
+        }
+
+        // Obtener estadísticas del período activo
+        $activePeriod->loadCount('propertyExpenses');
 
         return Inertia::render('PropertyExpenses/Generate', [
-            'periods' => $periods->map(function ($period) {
-                return [
-                    'id' => $period->id,
-                    'name' => $period->getPeriodName(),
-                    'status' => $period->status,
-                    'total_generated' => $period->total_generated,
-                    'properties_count' => $period->property_expenses_count,
-                    'can_generate' => $period->status === 'open',
-                ];
-            }),
+            'period' => [
+                'id' => $activePeriod->id,
+                'name' => $activePeriod->getPeriodName(),
+                'status' => $activePeriod->status,
+                'total_generated' => $activePeriod->total_generated,
+                'properties_count' => $activePeriod->property_expenses_count,
+                'can_generate' => $activePeriod->status === 'open',
+                'year' => $activePeriod->year,
+                'month' => $activePeriod->month,
+                'period_date' => $activePeriod->period_date,
+            ],
         ]);
     }
 
@@ -199,7 +218,6 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
         $propertyExpense->load([
             'expensePeriod',
             'propiedad.tipoPropiedad',
-            'propietario',
             'inquilino',
             'paymentAllocations.payment.paymentType',
             'paymentAllocations.payment.propietario',
@@ -207,6 +225,9 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
             'details.propiedad',
             'waterFactor'
         ]);
+
+        // Obtener propietario principal dinámicamente
+        $propietarioPrincipal = $propertyExpense->propiedad->propietarioPrincipal();
 
         // Obtener lecturas de agua si aplica
         $waterReadings = [];
@@ -224,7 +245,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                 ->limit(3)
                 ->get();
 
-            $waterReadings = $lecturas->map(function ($lectura) {
+            $waterReadings = $lecturas->map(function ($lectura) use ($propertyExpense) {
                 return [
                     'fecha' => $lectura->fecha_lectura->format('d/m/Y'),
                     'lectura' => $lectura->lectura_actual,
@@ -245,7 +266,7 @@ class PropertyExpenseController extends \Illuminate\Routing\Controller
                     'metros_cuadrados' => $propertyExpense->propiedad->metros_cuadrados,
                     'tipo_propiedad' => $propertyExpense->propiedad->tipoPropiedad->nombre,
                 ],
-                'propietario' => $propertyExpense->propietario?->nombre_completo,
+                'propietario' => $propietarioPrincipal?->nombre_completo,
                 'inquilino' => $propertyExpense->inquilino?->nombre_completo,
                 'facturar_a' => $propertyExpense->facturar_a,
                 'water_factors' => $propertyExpense->waterFactor ? [

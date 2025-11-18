@@ -6,43 +6,49 @@
         <div class="px-6 py-4 border-b border-gray-200">
           <h1 class="text-2xl font-semibold text-gray-900">Generar Expensas Mensuales</h1>
           <p class="mt-1 text-sm text-gray-600">
-            Genera expensas para todas las propiedades de un período específico
+            Genera expensas automáticamente para el período activo
           </p>
         </div>
 
+        <!-- Error Message -->
+        <div v-if="error" class="mx-6 mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div class="flex">
+            <svg class="h-5 w-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            <div class="text-sm text-red-700">{{ error }}</div>
+          </div>
+        </div>
+
         <!-- Formulario -->
-        <div class="px-6 py-6 space-y-6">
-          <!-- Selección de Período -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Período de Facturación
-            </label>
-            <select
-              v-model="form.period_id"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              :disabled="isGenerating"
-            >
-              <option value="">Seleccione un período</option>
-              <option
-                v-for="period in periods"
-                :key="period.id"
-                :value="period.id"
-                :disabled="!period.can_generate"
-              >
-                {{ period.name }}
-                <template v-if="!period.can_generate"> (Cerrado)</template>
-                <template v-else-if="period.properties_count > 0">
-                  ({{ period.properties_count }} propiedades)
-                </template>
-              </option>
-            </select>
-            <p v-if="form.errors.period_id" class="mt-1 text-sm text-red-600">
-              {{ form.errors.period_id }}
-            </p>
+        <div v-else class="px-6 py-6 space-y-6">
+          <!-- Información del Período Activo -->
+          <div v-if="period" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="text-sm font-medium text-blue-900 mb-2">Período Activo</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span class="text-blue-600">Período:</span>
+                <span class="ml-2 font-medium text-blue-900">{{ period.name }}</span>
+              </div>
+              <div>
+                <span class="text-blue-600">Estado:</span>
+                <span class="ml-2 font-medium" :class="getStatusClass(period.status)">
+                  {{ getStatusText(period.status) }}
+                </span>
+              </div>
+              <div>
+                <span class="text-blue-600">Propiedades:</span>
+                <span class="ml-2 font-medium text-blue-900">{{ period.properties_count }}</span>
+              </div>
+              <div>
+                <span class="text-blue-600">Total Generado:</span>
+                <span class="ml-2 font-medium text-blue-900">Bs {{ formatCurrency(period.total_generated) }}</span>
+              </div>
+            </div>
           </div>
 
           <!-- Factores de Cálculo -->
-          <div v-if="selectedPeriod" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-if="period" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Factor Departamento -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -93,7 +99,7 @@
           </div>
 
           <!-- Información de Factores de Agua -->
-          <div v-if="selectedPeriod" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div v-if="period" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 class="text-sm font-medium text-blue-900 mb-2">Factores de Agua del Período</h3>
             <p class="text-sm text-blue-700">
               Los factores de agua se calculan automáticamente desde las facturas de los medidores principales del edificio.
@@ -110,31 +116,7 @@
             </div>
           </div>
 
-          <!-- Información del Período -->
-          <div v-if="selectedPeriod" class="bg-gray-50 rounded-lg p-4">
-            <h3 class="text-sm font-medium text-gray-900 mb-2">Información del Período</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span class="text-gray-500">Estado:</span>
-                <span class="ml-2 font-medium" :class="getStatusClass(selectedPeriod.status)">
-                  {{ getStatusText(selectedPeriod.status) }}
-                </span>
-              </div>
-              <div>
-                <span class="text-gray-500">Propiedades:</span>
-                <span class="ml-2 font-medium">{{ selectedPeriod.properties_count }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Total Generado:</span>
-                <span class="ml-2 font-medium">Bs {{ formatCurrency(selectedPeriod.total_generated) }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Expensas Creadas:</span>
-                <span class="ml-2 font-medium">{{ selectedPeriod.properties_count }}</span>
-              </div>
-            </div>
-          </div>
-
+    
           <!-- Botón de Generación -->
           <div class="flex justify-end">
             <button
@@ -262,9 +244,13 @@ import { useForm } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
-  periods: {
-    type: Array,
-    required: true
+  period: {
+    type: Object,
+    default: null
+  },
+  error: {
+    type: String,
+    default: null
   }
 })
 
@@ -279,21 +265,17 @@ const progress = ref({
 
 // Formulario
 const form = useForm({
-  period_id: '',
+  period_id: props.period?.id || '',
   factor_departamento: 2.1,
   factor_comercial: 3.5
 })
 
 // Computed
-const selectedPeriod = computed(() => {
-  return props.periods.find(p => p.id === form.period_id)
-})
-
 const canGenerate = computed(() => {
-  return form.period_id &&
+  return props.period &&
          form.factor_departamento > 0 &&
          form.factor_comercial > 0 &&
-         selectedPeriod.value?.can_generate
+         props.period.can_generate
 })
 
 const progressPercentage = computed(() => {
@@ -314,7 +296,12 @@ const generateExpenses = async () => {
   }
 
   try {
-    const response = await form.post('/property-expenses/generate', {
+    await form.post('/property-expenses/generate', {
+      // Transformar los datos antes de enviar para asegurar que period_id esté incluido
+      transform: (data) => ({
+        ...data,
+        period_id: props.period.id
+      }),
       onStart: () => {
         progress.value.message = 'Preparando datos...'
       },
@@ -324,6 +311,9 @@ const generateExpenses = async () => {
       },
       onError: (errors) => {
         progress.value.message = '❌ Error en la generación'
+        console.error('Errores de validación:', errors)
+        console.log('Período actual:', props.period)
+        console.log('ID del período:', props.period?.id)
       },
       onFinish: () => {
         isGenerating.value = false
@@ -335,13 +325,14 @@ const generateExpenses = async () => {
 
   } catch (error) {
     console.error('Error generando expensas:', error)
+    console.log('Período actual:', props.period)
     progress.value.message = '❌ Error inesperado'
     isGenerating.value = false
   }
 }
 
 const simulateProgress = () => {
-  const totalSteps = selectedPeriod.value?.properties_count || 50
+  const totalSteps = props.period?.properties_count || 50
   progress.value.total = totalSteps
 
   const interval = setInterval(() => {
@@ -387,14 +378,10 @@ const getStatusText = (status) => {
   }
 }
 
-// Watchers
-watch(() => form.period_id, (newPeriodId) => {
-  if (newPeriodId) {
-    const period = props.periods.find(p => p.id === newPeriodId)
-    if (period) {
-      // Resetear resultados anteriores
-      results.value = null
-    }
+// Watcher para asegurar que el period_id se mantenga actualizado
+watch(() => props.period?.id, (newId) => {
+  if (newId) {
+    form.period_id = newId
   }
-})
+}, { immediate: true })
 </script>
