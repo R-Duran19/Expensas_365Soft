@@ -93,7 +93,7 @@ class PaymentAllocationService
                     'status' => $expense->status
                 ];
 
-                Log::info("Pago {$payment->id} - Allocation: {$amountToApply} BS a expensa {$expense->id}");
+                Log::info("Pago {$payment->id} - Allocation: {$amountToApply} BS a expensa {$expense->id} | Balance anterior: {$currentBalance} BS -> Balance nuevo: {$expense->balance} BS");
             }
 
             // Crear movimiento de caja
@@ -205,7 +205,7 @@ class PaymentAllocationService
 
             // Actualizar expensa
             $newPaidAmount = $expense->paid_amount + $amountToApply;
-            $newBalance = $expense->balance - $amountToApply;
+            $newBalance = max(0, $expense->total_amount - $newPaidAmount); // Corregir: calcular balance desde cero
 
             $expense->update([
                 'paid_amount' => $newPaidAmount,

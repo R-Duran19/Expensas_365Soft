@@ -145,7 +145,7 @@ public function store(Request $request)
                 'propietario:id,nombre_completo',
                 'propiedad:id,codigo,ubicacion'
             ])
-            ->orderBy('payment_date', 'desc')
+            ->orderBy('receipt_number', 'desc')
             ->get()
             ->map(function ($payment) {
                 // Corregir datos si es necesario

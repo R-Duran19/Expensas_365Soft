@@ -233,24 +233,23 @@
               />
             </div>
 
-            <!-- QR Payment Section (Placeholder para futura funcionalidad) -->
-            <div v-if="form.payment_type_id && paymentTypes.find(t => t.id === form.payment_type_id)?.code === 'QR'" class="bg-primary-foreground/10 rounded-lg p-4 border border-primary-foreground/30">
-              <div class="flex items-center justify-center py-6">
-                <div class="text-center">
-                  <div class="w-16 h-16 bg-primary-foreground/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-qrcode text-2xl text-primary-foreground"></i>
-                  </div>
-                  <p class="text-primary-foreground/90 text-sm">QR Payment Integration</p>
-                  <p class="text-primary-foreground/70 text-xs mt-1">Próximamente disponible</p>
-                  <div class="mt-3 p-2 bg-primary-foreground/10 rounded text-xs">
-                    <p class="text-primary-foreground/80">API del Banco → QR Dinámico → Pago Instantáneo</p>
-                  </div>
-                </div>
-              </div>
+            <!-- QR Payment Button -->
+            <div v-if="isQrPayment" class="mt-4">
+              <button
+                type="button"
+                @click="openQRDialog"
+                class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-[1.02] shadow-lg"
+              >
+                <i class="fas fa-qrcode mr-2"></i>
+                Generar Pago con Código QR
+              </button>
+              <p class="text-xs text-primary-foreground/70 mt-2 text-center">
+                Genere un código QR dinámico para que el cliente pueda pagar instantáneamente
+              </p>
             </div>
 
-            <!-- Referencia -->
-            <div v-if="form.payment_type_id && paymentTypes.find(t => t.id === form.payment_type_id)?.code !== 'QR'">
+            <!-- Referencia para otros métodos de pago -->
+            <div v-if="form.payment_type_id && !isQrPayment">
               <label class="block text-sm font-medium text-primary-foreground/80 mb-2">Referencia</label>
               <input
                 v-model="form.reference"
@@ -294,8 +293,8 @@
               </div>
             </div>
 
-            <!-- Botones -->
-            <div class="flex space-x-3 pt-4">
+            <!-- Botones para pagos no-QR -->
+            <div v-if="!isQrPayment" class="flex space-x-3 pt-4">
               <Link
                 href="/pagos"
                 class="flex-1 px-4 py-3 border border-primary-foreground/30 rounded-lg text-center text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10 transition-colors"
@@ -310,6 +309,17 @@
                 <i class="fas fa-check mr-2"></i>
                 {{ submitting ? 'Procesando...' : 'Registrar Pago' }}
               </button>
+            </div>
+
+            <!-- Mensaje de pago QR procesado -->
+            <div v-else-if="qrPaid" class="mt-4 p-4 bg-green-500/20 rounded-lg">
+              <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-600 mr-3 text-xl"></i>
+                <div>
+                  <h4 class="font-semibold text-green-800">¡Pago QR Procesado!</h4>
+                  <p class="text-sm text-green-700">El pago ha sido registrado exitosamente.</p>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -329,6 +339,76 @@
         </div>
       </div>
     </div>
+
+    <!-- QR Dialog Modal -->
+    <div v-if="showQRDialog" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex min-h-screen items-center justify-center p-4">
+        <!-- Backdrop - Más transparente con blur -->
+        <div class="fixed inset-0 bg-transparent backdrop-blur-sm" @click="closeQRDialog"></div>
+
+        <!-- Modal Responsive -->
+        <div class="relative bg-card rounded-xl shadow-2xl max-w-6xl w-full p-4 sm:p-6 border border-border max-h-[95vh] overflow-y-auto">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 class="text-xl sm:text-2xl font-bold text-foreground">
+              <i class="fas fa-qrcode mr-2 sm:mr-3 text-blue-600"></i>
+              Pago con Código QR
+            </h2>
+            <button
+              type="button"
+              @click="closeQRDialog"
+              class="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Layout Responsive Grid -->
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+            <!-- Columna Izquierda: Datos Compactos -->
+            <div class="xl:col-span-1">
+              <div class="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-3">
+                <h3 class="font-semibold text-foreground text-sm mb-3">Información del Pago</h3>
+
+                <div class="space-y-2">
+                  <div>
+                    <span class="text-xs text-muted-foreground">Propietario:</span>
+                    <p class="font-medium text-foreground text-sm">
+                      {{ propietarios.find(o => o.id === form.propietario_id)?.nombre_completo || 'No seleccionado' }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span class="text-xs text-muted-foreground">Monto:</span>
+                    <p class="font-bold text-lg sm:text-xl text-primary">{{ formatCurrency(form.amount) }}</p>
+                  </div>
+
+                  <div v-if="currentExpense">
+                    <span class="text-xs text-muted-foreground">Propiedad:</span>
+                    <p class="font-medium text-foreground text-sm">{{ currentExpense.propiedad?.codigo || 'N/A' }}</p>
+                  </div>
+
+                  <div>
+                    <span class="text-xs text-muted-foreground">Fecha:</span>
+                    <p class="font-medium text-foreground text-sm">{{ new Date().toLocaleDateString('es-BO') }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Columna Derecha: QR Principal -->
+            <div class="xl:col-span-2">
+              <PaymentQR
+                mode="realtime"
+                :payment-data="getPaymentDataForQR()"
+                @qr-generated="handleQRGenerated"
+                @qr-paid="handleQRPaid"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   </AppLayout>
 </template>
@@ -338,6 +418,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { fetchWithCsrf, refreshCsrfToken } from '@/utils/csrf'
 import { useNotification } from '@/composables/useNotification'
+import PaymentQR from '@/components/PaymentQR.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 
 const props = defineProps({
@@ -365,6 +446,38 @@ const form = reactive({
 const currentExpense = ref(props.currentExpense || null)
 const loadingExpense = ref(false)
 const submitting = ref(false)
+
+// Estado para QR y Modal
+const showQRDialog = ref(false)
+const qrGenerated = ref(false)
+const qrData = ref({})
+const qrPaid = ref(false)
+
+// Computed properties
+const isQrPayment = computed(() => {
+  const selectedType = props.paymentTypes?.find(t => t.id === form.payment_type_id)
+  return form.payment_type_id && selectedType?.code === 'QR'
+})
+
+// Métodos para el Modal QR
+const openQRDialog = () => {
+  // Validar que tenga los datos necesarios
+  if (!form.propietario_id || !form.amount || !form.payment_type_id) {
+    showError('Datos incompletos', 'Por favor complete todos los datos requeridos antes de generar el QR')
+    return
+  }
+
+  if (form.amount <= 0) {
+    showError('Monto inválido', 'El monto debe ser mayor a 0')
+    return
+  }
+
+  showQRDialog.value = true
+}
+
+const closeQRDialog = () => {
+  showQRDialog.value = false
+}
 
 const getPeriodName = (year, month) => {
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -592,6 +705,92 @@ const formatCurrency = (amount) => {
     style: 'currency',
     currency: 'BOB'
   }).format(amount)
+}
+
+// Métodos para QR
+const getPaymentDataForQR = () => {
+  return {
+    pago_id: form.propietario_id ? `temp_${Date.now()}` : null,
+    propietario_id: form.propietario_id,
+    expensa_id: currentExpense.value?.id,
+    amount: parseFloat(form.amount) || 0,
+    // Agregar información adicional para consistencia
+    formulario_original_amount: form.amount,
+    es_pago_qr: true
+  }
+}
+
+
+const handleQRGenerated = (qrInfo) => {
+  qrData.value = qrInfo
+  qrGenerated.value = true
+
+  // Guardar el QR temporalmente con todos los datos
+  form.qr_data = qrInfo
+  form.qr_monto = qrInfo.monto  // Guardar específicamente el monto del QR
+  form.reference = qrInfo.alias
+
+  // Actualizar el monto del formulario para que coincida con el QR
+  form.amount = qrInfo.monto
+
+  showSuccess('QR generado exitosamente', `Alias: ${qrInfo.alias} - Monto: ${formatCurrency(qrInfo.monto)}`)
+}
+
+const handleQRPaid = async (qrInfo) => {
+  // Cerrar el modal automáticamente
+  closeQRDialog()
+
+  showSuccess('¡Pago recibido!', `El pago por QR ha sido procesado exitosamente por ${formatCurrency(qrInfo.monto)}`)
+
+  // Actualizar el estado del QR
+  qrPaid.value = true
+  qrData.value = qrInfo
+
+  // Usar el monto exacto del QR (no del formulario)
+  const pagoMonto = qrInfo.monto
+
+  try {
+    // Crear el pago real basado en los datos del QR con el monto correcto
+    const paymentResponse = await fetch('/pagos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      },
+      body: JSON.stringify({
+        propietario_id: form.propietario_id,
+        propiedad_id: form.propiedad_id,
+        payment_type_id: form.payment_type_id,
+        amount: pagoMonto,  // <-- IMPORTANTE: Usar el monto del QR
+        payment_date: new Date().toISOString().split('T')[0],
+        reference: qrInfo.alias,
+        notes: `Pago QR procesado automáticamente - Monto QR: ${formatCurrency(pagoMonto)}`,
+        qr_id: qrInfo.id,
+        qr_paid: true,
+        // Agregar información adicional para validación
+        qr_alias: qrInfo.alias,
+        qr_detalle_glosa: qrInfo.detalle_glosa,
+        qr_fecha_generacion: new Date().toISOString()
+      })
+    })
+
+    const paymentResult = await paymentResponse.json()
+
+    if (paymentResult.success) {
+      showInfo('Pago registrado correctamente',
+        `Recibo: ${paymentResult.receipt_number} - Monto: ${formatCurrency(pagoMonto)}`)
+    } else {
+      showError('Error registrando pago', paymentResult.message)
+    }
+  } catch (error) {
+    console.error('Error registrando pago:', error)
+    showError('Error', 'Hubo un error al registrar el pago, pero el QR fue procesado. Contacte al administrador.')
+  }
+
+  // Redirigir después de mostrar las notificaciones
+  setTimeout(() => {
+    router.visit('/pagos')
+  }, 4000)
 }
 
 onMounted(() => {

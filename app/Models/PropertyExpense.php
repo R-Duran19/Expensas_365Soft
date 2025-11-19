@@ -42,7 +42,7 @@ class PropertyExpense extends Model
         'previous_debt' => 'integer',
         'total_amount' => 'integer',
         'paid_amount' => 'decimal:2',
-        'balance' => 'integer',
+        'balance' => 'decimal:2',
         'water_previous_reading' => 'decimal:2',
         'water_current_reading' => 'decimal:2',
         'water_consumption' => 'decimal:2',

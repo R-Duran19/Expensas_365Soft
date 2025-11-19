@@ -40,8 +40,8 @@ class PaymentController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('receipt_number', 'like', "%{$search}%")
                   ->orWhereHas('propietario', function ($subQ) use ($search) {
-                      $subQ->where('nombre', 'like', "%{$search}%")
-                           ->orWhere('apellido', 'like', "%{$search}%");
+                      $subQ->where('nombre_completo', 'like', "%{$search}%")
+                           ->orWhere('ci', 'like', "%{$search}%");
                   })
                   ->orWhereHas('propiedad', function ($subQ) use ($search) {
                       $subQ->where('codigo', 'like', "%{$search}%");
@@ -135,7 +135,8 @@ class PaymentController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        // Reglas de validación base
+        $rules = [
             'propietario_id' => 'required|exists:propietarios,id',
             'propiedad_id' => 'required|exists:propiedades,id',
             'payment_type_id' => 'required|exists:payment_types,id',
@@ -143,10 +144,68 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000'
-        ]);
+        ];
+
+        // Reglas adicionales para pagos QR
+        if ($request->qr_paid || $request->qr_id) {
+            $rules = array_merge($rules, [
+                'qr_id' => 'required|exists:qr,id',
+                'qr_alias' => 'required|string|max:100',
+                'qr_detalle_glosa' => 'nullable|string|max:255',
+                'qr_fecha_generacion' => 'nullable|date'
+            ]);
+        }
+
+        $request->validate($rules);
 
         try {
             DB::beginTransaction();
+
+            // Validación específica para pagos QR
+            $qrInfo = null;
+            $qrMonto = null;
+
+            if ($request->qr_paid && $request->qr_id) {
+                // Verificar que el QR exista y esté pagado
+                $qrInfo = \App\Models\Qr::find($request->qr_id);
+
+                if (!$qrInfo) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'QR no encontrado en el sistema'
+                    ], 400);
+                }
+
+                if ($qrInfo->estado !== \App\Models\Qr::ESTADO_PAGADO) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El QR no ha sido pagado aún. Estado actual: ' . $qrInfo->estado
+                    ], 400);
+                }
+
+                // Validar consistencia de montos
+                $qrMonto = $qrInfo->monto;
+                $formMonto = (float) $request->amount;
+
+                if (abs($qrMonto - $formMonto) > 0.01) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Inconsistencia de montos. Monto QR: Bs {$qrMonto}, Monto formulario: Bs {$formMonto}"
+                    ], 400);
+                }
+
+                // Validar que el QR pertenezca al mismo propietario
+                if ($qrInfo->propietario_id !== $request->propietario_id) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El QR no pertenece al propietario seleccionado'
+                    ], 400);
+                }
+            }
 
             // Obtener período activo
             $activePeriod = $this->getActivePeriod();
@@ -175,20 +234,35 @@ class PaymentController extends Controller
             // Generar número de recibo único
             $receiptNumber = Payment::generateReceiptNumber();
 
-            // Crear pago asociado al período activo
-            $payment = Payment::create([
+            // Crear pago asociado al período activo con datos del QR si aplica
+            $paymentData = [
                 'receipt_number' => $receiptNumber,
                 'propiedad_id' => $request->propiedad_id,
                 'propietario_id' => $request->propietario_id,
                 'payment_type_id' => $request->payment_type_id,
                 'expense_period_id' => $activePeriod->id,
-                'amount' => $request->amount,
+                'amount' => $qrMonto ?: $request->amount, // Usar monto del QR si existe
                 'payment_date' => $request->payment_date,
                 'registered_at' => now(),
                 'reference' => $request->reference,
                 'notes' => $request->notes,
                 'status' => 'active'
-            ]);
+            ];
+
+            // Agregar metadatos del QR si es un pago QR
+            if ($qrInfo) {
+                $paymentData['notes'] .= "\n\n--- DATOS DEL QR ---\n";
+                $paymentData['notes'] .= "QR ID: {$qrInfo->id}\n";
+                $paymentData['notes'] .= "Alias: {$qrInfo->alias}\n";
+                $paymentData['notes'] .= "Monto QR: Bs {$qrInfo->monto}\n";
+                $paymentData['notes'] .= "Detalle: {$qrInfo->detalle_glosa}\n";
+                if ($qrInfo->expensa_id) {
+                    $paymentData['notes'] .= "ID Expensa Asociada: {$qrInfo->expensa_id}\n";
+                }
+                $paymentData['notes'] .= "Fecha Generación: " . now()->format('d/m/Y H:i:s');
+            }
+
+            $payment = Payment::create($paymentData);
 
             // Procesar imputación automática (limitada al período activo)
             $allocationResult = $this->paymentAllocationService->allocatePaymentToPeriod(
@@ -206,15 +280,39 @@ class PaymentController extends Controller
                 ], 400);
             }
 
+            // Validación de consistencia para pagos QR
+            if ($qrInfo) {
+                // Verificar que la imputación coincida con el monto del QR
+                $allocatedAmount = $allocationResult['allocated_amount'] ?? 0;
+                if (abs($allocatedAmount - $qrMonto) > 0.01) {
+                    Log::warning("Inconsistencia en imputación QR: Monto QR={$qrMonto}, Monto Imputado={$allocatedAmount}", [
+                        'qr_id' => $qrInfo->id,
+                        'payment_id' => $payment->id,
+                        'receipt_number' => $receiptNumber
+                    ]);
+                }
+            }
+
             DB::commit();
+
+            // Mensaje específico para pagos QR
+            $successMessage = $qrInfo
+                ? "Pago QR registrado exitosamente. Recibo: {$receiptNumber} - Monto: Bs {$qrMonto}"
+                : 'Pago registrado e imputado exitosamente';
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pago registrado e imputado exitosamente',
+                'message' => $successMessage,
                 'payment_id' => $payment->id,
                 'receipt_number' => $receiptNumber,
                 'allocation_result' => $allocationResult,
-                'expense' => $expense
+                'expense' => $expense,
+                'qr_info' => $qrInfo ? [
+                    'id' => $qrInfo->id,
+                    'alias' => $qrInfo->alias,
+                    'monto' => $qrInfo->monto,
+                    'estado' => $qrInfo->estado
+                ] : null
             ]);
 
         } catch (\Exception $e) {

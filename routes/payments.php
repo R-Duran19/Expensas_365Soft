@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentQrController;
 use Illuminate\Support\Facades\Route;
 
 // Rutas para gestión de pagos
@@ -32,6 +33,17 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/{payment}/anular', [PaymentController::class, 'cancel'])
             ->name('api.payments.cancel');
+
+        // Rutas para QR de pagos
+        Route::post('/qr/generar', [PaymentQrController::class, 'generarQrDinamico'])
+            ->name('api.payments.qr.generar');
+
+        Route::post('/qr/verificar-estado', [PaymentQrController::class, 'verificarEstadoQr'])
+            ->name('api.payments.qr.verificar_estado');
+
+        
+        Route::post('/qr/{qr_id}/cancelar', [PaymentQrController::class, 'cancelarQr'])
+            ->name('api.payments.qr.cancelar');
     });
 
     // API para integraciones y estadísticas
@@ -42,4 +54,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/stats', [PaymentController::class, 'stats'])
             ->name('api.payments.stats');
     });
+
+    // Callback del sistema QR (no requiere auth middleware general)
+    Route::post('/qr/callback', [PaymentQrController::class, 'handleCallback'])
+        ->name('api.payments.qr.callback');
 });
