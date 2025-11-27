@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             OficinasSeeder::class,
             DepartamentosSeeder::class,
             MedidoresSeeder::class,
-            ExpenseSystemSeeder::class,
+            // ExpenseSystemSeeder::class,
         ]);
     }
 }
